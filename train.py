@@ -1,16 +1,17 @@
-import cv2
 import glob
 import logging
+import os
+import platform
+import time
+from collections import OrderedDict
+
+import cv2
 import mlflow as ml
 import mxnet as mx
 import mxnet.autograd as autograd
 import mxnet.contrib.amp as amp
 import mxnet.gluon as gluon
 import numpy as np
-import os
-import platform
-import time
-from collections import OrderedDict
 from mxboard import SummaryWriter
 from tqdm import tqdm
 
@@ -586,7 +587,7 @@ def run(mean=[0.485, 0.456, 0.406],
                                 ig = ig.asnumpy()
                                 hconcat_image_list.append(ig)
 
-                        hconcat_images = cv2.hconcat(hconcat_image_list)
+                        hconcat_images = np.concatenate(hconcat_image_list, axis=1)
 
                         # Tensorboard에 그리기 위해 BGR -> RGB / (height, width, channel) -> (channel, height, width) 를한다.
                         hconcat_images = cv2.cvtColor(hconcat_images, cv2.COLOR_BGR2RGB)
