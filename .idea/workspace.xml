@@ -1,41 +1,113 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="7b2fe37c-195e-4c07-87b0-8a1567b7d238" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="b30ba2aa-7225-4317-b48b-4c9e452bdf0c" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/PyTorch-Detector.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/utils/dataprocessing/dataloader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/nframeCenter_torch.iml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/configs/detector.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/configs/detector.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
-  </component>
-  <component name="ProjectId" id="1egikxYmE29p2WTjKyAsaW5g98G" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
-  <component name="PropertiesComponent">
-    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../nframeCenter" />
-  </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
       <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
+        <option value="Python Script" />
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.dataset">
-    <configuration name="dataset" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="nframeCenter_torch" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectId" id="1ehhnW61ScXPHOpBBI8nxdEVynf" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../mountain/1frameYoloV3" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/core/utils/dataprocessing" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.ex">
+    <configuration name="dataloader (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyTorch-Detector" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$USER_HOME$/anaconda3/envs/pytorch/lib/python3.7/site-packages/torch/utils/data" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$USER_HOME$/anaconda3/envs/pytorch/lib/python3.7/site-packages/torch/utils/data/dataloader.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="dataloader" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyTorch-Detector" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/core/utils/dataprocessing" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/core/utils/dataprocessing/dataloader.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="dataset" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyTorch-Detector" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -55,19 +127,19 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="target" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="nframeCenter_torch" />
+    <configuration name="ex" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyTorch-Detector" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/core/utils/dataprocessing" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/core/utils/dataprocessing/target.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ex.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -76,8 +148,8 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="transformer" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="nframeCenter_torch" />
+    <configuration name="transformer" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="PyTorch-Detector" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -99,9 +171,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.dataset" />
-        <item itemvalue="Python.target" />
+        <item itemvalue="Python.ex" />
+        <item itemvalue="Python.dataloader" />
         <item itemvalue="Python.transformer" />
+        <item itemvalue="Python.dataloader (1)" />
+        <item itemvalue="Python.dataset" />
       </list>
     </recent_temporary>
   </component>
@@ -110,11 +184,11 @@
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="7b2fe37c-195e-4c07-87b0-8a1567b7d238" name="Default Changelist" comment="" />
-      <created>1594749784077</created>
+      <changelist id="b30ba2aa-7225-4317-b48b-4c9e452bdf0c" name="Default Changelist" comment="" />
+      <created>1594779898200</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1594749784077</updated>
+      <updated>1594779898200</updated>
     </task>
     <servers />
   </component>
@@ -128,5 +202,52 @@
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl" timestamp="1594787098002">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594787098002" />
+    <state width="2472" height="411" key="GridCell.Tab.0.bottom" timestamp="1594820295887">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="411" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295887" />
+    <state width="2472" height="411" key="GridCell.Tab.0.center" timestamp="1594820295887">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="411" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295887" />
+    <state width="2472" height="411" key="GridCell.Tab.0.left" timestamp="1594820295886">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="411" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295886" />
+    <state width="2472" height="411" key="GridCell.Tab.0.right" timestamp="1594820295887">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="411" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295887" />
+    <state width="2472" height="501" key="GridCell.Tab.1.bottom" timestamp="1594785523681">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="501" key="GridCell.Tab.1.bottom/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594785523681" />
+    <state width="2472" height="501" key="GridCell.Tab.1.center" timestamp="1594785523681">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="501" key="GridCell.Tab.1.center/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594785523681" />
+    <state width="2472" height="501" key="GridCell.Tab.1.left" timestamp="1594785523681">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="501" key="GridCell.Tab.1.left/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594785523681" />
+    <state width="2472" height="501" key="GridCell.Tab.1.right" timestamp="1594785523681">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state width="2472" height="501" key="GridCell.Tab.1.right/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594785523681" />
+    <state x="3366" y="354" key="SettingsEditor" timestamp="1594779958358">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state x="3366" y="354" key="SettingsEditor/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594779958358" />
+    <state x="3517" y="336" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1594805325198">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state x="3517" y="336" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594805325198" />
   </component>
 </project>

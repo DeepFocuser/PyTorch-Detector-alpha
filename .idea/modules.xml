@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/nframeCenter_torch.iml" filepath="$PROJECT_DIR$/.idea/nframeCenter_torch.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/PyTorch-Detector.iml" filepath="$PROJECT_DIR$/.idea/PyTorch-Detector.iml" />
     </modules>
   </component>
 </project>

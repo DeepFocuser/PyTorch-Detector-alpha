@@ -41,7 +41,6 @@ hyperparameters:
   epoch: 30
   batch_size: 32
   batch_log: 100
-  batch_interval: 10
   subdivision: 1
   data_augmentation: True
   num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.

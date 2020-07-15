@@ -7,19 +7,18 @@ from collections import OrderedDict
 
 import cv2
 import mlflow as ml
-import mxnet as mx
-import mxnet.autograd as autograd
-import mxnet.contrib.amp as amp
-import mxnet.gluon as gluon
 import numpy as np
-from mxboard import SummaryWriter
+import torch
+import torch.cuda.amp as amp
+from torch.utils.tensorboard import SummaryWriter
+from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
-from core import CenterNet
-from core import HeatmapFocalLoss, NormedL1Loss
-from core import Prediction
+# from core import CenterNet
+# from core import HeatmapFocalLoss, NormedL1Loss
+# from core import Prediction
 from core import Voc_2007_AP
-from core import plot_bbox, export_block_for_cplusplus, PostNet
+from core import plot_bbox  # , export_block_for_cplusplus, PostNet
 from core import traindataloader, validdataloader
 
 logfilepath = ""
@@ -35,7 +34,6 @@ def run(mean=[0.485, 0.456, 0.406],
         input_frame_number=2,
         batch_size=16,
         batch_log=100,
-        batch_interval=10,
         subdivision=4,
         train_dataset_path="Dataset/train",
         valid_dataset_path="Dataset/valid",
@@ -64,17 +62,14 @@ def run(mean=[0.485, 0.456, 0.406],
         except_class_thresh=0.01,
         nms_thresh=0.5,
         plot_class_thresh=0.5):
-    '''
-    AMP 가 모든 연산을 지원하지는 않는다.
-    modulated convolution을 지원하지 않음
-    '''
+
     if GPU_COUNT == 0:
-        ctx = mx.cpu(0)
+        device = torch.device("cpu")
         AMP = False
     elif GPU_COUNT == 1:
-        ctx = mx.gpu(0)
+        device = torch.device("cuda")
     else:
-        ctx = [mx.gpu(i) for i in range(2, GPU_COUNT-1)]
+        device = [torch.device(f"cuda:{i}") for i in range(0, GPU_COUNT)]
 
     # 운영체제 확인
     if platform.system() == "Linux":
@@ -84,20 +79,24 @@ def run(mean=[0.485, 0.456, 0.406],
     else:
         logging.info(f"{platform.system()} OS")
 
-    if isinstance(ctx, (list, tuple)):
-        for i, c in enumerate(ctx):
-            free_memory, total_memory = mx.context.gpu_memory_info(i)
-            free_memory = round(free_memory / (1024 * 1024 * 1024), 2)
-            total_memory = round(total_memory / (1024 * 1024 * 1024), 2)
-            logging.info(f'Running on {c} / free memory : {free_memory}GB / total memory {total_memory}GB')
+    if isinstance(device, (list, tuple)):
+        for i, d in enumerate(device):
+            total_memory = torch.cuda.get_device_properties(d).total_memory
+            free_memory = total_memory - torch.cuda.memory_allocated(d)
+            free_memory = round(free_memory / (1024**3), 2)
+            total_memory = round(total_memory / (1024**3), 2)
+            logging.info(f'{torch.cuda.get_device_name(d)}')
+            logging.info(f'Running on {d} / free memory : {free_memory}GB / total memory {total_memory}GB')
     else:
         if GPU_COUNT == 1:
-            free_memory, total_memory = mx.context.gpu_memory_info(0)
-            free_memory = round(free_memory / (1024 * 1024 * 1024), 2)
-            total_memory = round(total_memory / (1024 * 1024 * 1024), 2)
-            logging.info(f'Running on {ctx} / free memory : {free_memory}GB / total memory {total_memory}GB')
+            total_memory = torch.cuda.get_device_properties(device).total_memory
+            free_memory = total_memory - torch.cuda.memory_allocated(device)
+            free_memory = round(free_memory / (1024**3), 2)
+            total_memory = round(total_memory / (1024**3), 2)
+            logging.info(f'{torch.cuda.get_device_name(device)}')
+            logging.info(f'Running on {device} / free memory : {free_memory}GB / total memory {total_memory}GB')
         else:
-            logging.info(f'Running on {ctx}')
+            logging.info(f'Running on {device}')
 
     if GPU_COUNT > 0 and batch_size < GPU_COUNT:
         logging.info("batch size must be greater than gpu number")
@@ -105,9 +104,6 @@ def run(mean=[0.485, 0.456, 0.406],
 
     if AMP:
         amp.init()
-
-    if multiscale:
-        logging.info("Using MultiScale")
 
     if data_augmentation:
         logging.info("Using Data Augmentation")
@@ -119,14 +115,12 @@ def run(mean=[0.485, 0.456, 0.406],
     logging.info(f"scale factor {scale_factor}")
 
 
-    train_dataloader, train_dataset = traindataloader(multiscale=multiscale,
-                                                      factor_scale=factor_scale,
-                                                      augmentation=data_augmentation,
+    train_dataloader, train_dataset = traindataloader(augmentation=data_augmentation,
                                                       path=train_dataset_path,
                                                       input_size=input_size,
                                                       input_frame_number=input_frame_number,
                                                       batch_size=batch_size,
-                                                      batch_interval=batch_interval,
+                                                      pin_memory=True,
                                                       num_workers=num_workers,
                                                       shuffle=True, mean=mean, std=std, scale_factor=scale_factor,
                                                       make_target=True)
@@ -143,6 +137,7 @@ def run(mean=[0.485, 0.456, 0.406],
                                                           input_frame_number=input_frame_number,
                                                           batch_size=valid_size,
                                                           num_workers=num_workers,
+                                                          pin_memory = True,
                                                           shuffle=True, mean=mean, std=std, scale_factor=scale_factor,
                                                           make_target=True)
         valid_update_number_per_epoch = len(valid_dataloader)
@@ -160,56 +155,49 @@ def run(mean=[0.485, 0.456, 0.406],
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_CENTER_RES" + str(base)
 
     weight_path = os.path.join("weights", f"{model}")
-    sym_path = os.path.join(weight_path, f'{model}-symbol.json')
-    param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.params')
-    optimizer_path = os.path.join(weight_path, f'{model}-{load_period:04d}.opt')
+    param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.pt')
+    # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
+    # optimizer_path = os.path.join(weight_path, f'{model}-{load_period:04d}.opt')
 
-    if os.path.exists(param_path) and os.path.exists(sym_path):
+    start_epoch = 0
+    net = CenterNet(base=base,
+                    heads=OrderedDict([
+                        ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
+                        ('offset', {'num_output': 2}),
+                        ('wh', {'num_output': 2})
+                    ]),
+                    head_conv_channel=64,
+                    pretrained=pretrained_base,
+                    root=pretrained_path,
+                    use_dcnv2=False, ctx=ctx)
+
+    # https://github.com/sksq96/pytorch-summary
+    modelsummary(net, input_shape)
+
+    if os.path.exists(param_path):
         start_epoch = load_period
         logging.info(f"loading {os.path.basename(param_path)}\n")
-        net = gluon.SymbolBlock.imports(sym_path,
-                                        ['data'],
-                                        param_path, ctx=ctx)
-    else:
-        start_epoch = 0
-        net = CenterNet(base=base,
-                        heads=OrderedDict([
-                            ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
-                            ('offset', {'num_output': 2}),
-                            ('wh', {'num_output': 2})
-                        ]),
-                        head_conv_channel=64,
-                        pretrained=pretrained_base,
-                        root=pretrained_path,
-                        use_dcnv2=False, ctx=ctx)
+        checkpoint = torch.load(param_path)
+        net.load_state_dict(checkpoint['model_state_dict'])
 
-        if isinstance(ctx, (list, tuple)):
-            net.summary(mx.nd.ones(shape=input_shape, ctx=ctx[0]))
-        else:
-            net.summary(mx.nd.ones(shape=input_shape, ctx=ctx))
+        # optimizer weight 불러오기
+        if 'optimizer_state_dict' in checkpoint:
+            try:
+                net.load_state_dict(checkpoint['optimizer_state_dict'])
+            except Exception as E:
+                logging.info(E)
+            else:
+                logging.info(f"loading optimizer_state_dict\n")
 
-        '''
-        active (bool, default True) – Whether to turn hybrid on or off.
-        static_alloc (bool, default False) – Statically allocate memory to improve speed. Memory usage may increase.
-        static_shape (bool, default False) – Optimize for invariant input shapes between iterations. Must also set static_alloc to True. Change of input shapes is still allowed but slower.
-        '''
-        if multiscale:
-            net.hybridize(active=True, static_alloc=True, static_shape=False)
-        else:
-            net.hybridize(active=True, static_alloc=True, static_shape=True)
 
-    if start_epoch + 1 >= epoch + 1:
-        logging.info("this model has already been optimized")
-        exit(0)
+            net.load_state_dict(torch.load(param_path))
 
     if tensorboard:
-        summary = SummaryWriter(logdir=os.path.join("mxboard", model), max_queue=10, flush_secs=10,
-                                verbose=False)
-        if isinstance(ctx, (list, tuple)):
-            net.forward(mx.nd.ones(shape=input_shape, ctx=ctx[0]))
+        summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)
+        if isinstance(device, (list, tuple)):
+            summary.add_graph(net, input_to_model=torch.ones(input_shape, device=device[0]), verbose=False)
         else:
-            net.forward(mx.nd.ones(shape=input_shape, ctx=ctx))
-        summary.add_graph(net)
+            summary.add_graph(net, input_to_model=torch.ones(input_shape, device=device), verbose=False)
 
     # optimizer
     unit = 1 if (len(train_dataset) // batch_size) < 1 else len(train_dataset) // batch_size
@@ -256,10 +244,9 @@ def run(mean=[0.485, 0.456, 0.406],
     if AMP:
         amp.init_trainer(trainer)
 
-    # optimizer weight 불러오기
-    if os.path.exists(optimizer_path):
-        logging.info(f"loading {os.path.basename(optimizer_path)}\n")
-        trainer.load_states(optimizer_path)
+    if start_epoch + 1 >= epoch + 1:
+        logging.info("this model has already been optimized")
+        exit(0)
 
     heatmapfocalloss = HeatmapFocalLoss(from_sigmoid=True, alpha=2, beta=4)
     normedl1loss = NormedL1Loss()
@@ -539,7 +526,6 @@ def run(mean=[0.485, 0.456, 0.406],
                     ground_truth_colors[k] = (0, 0, 1)
 
                 batch_image = []
-                heatmap_image = []
                 for img, lb in zip(image, label):
                     gt_boxes = lb[:, :, :4]
                     gt_ids = lb[:, :, 4:5]
@@ -639,7 +625,6 @@ if __name__ == "__main__":
         input_frame_number=2,
         batch_size=16,
         batch_log=100,
-        batch_interval=10,
         subdivision=4,
         train_dataset_path="Dataset/train",
         valid_dataset_path="Dataset/valid",

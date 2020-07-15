@@ -1,6 +1,7 @@
 import os
 
 import mlflow as ml
+import torch
 import yaml
 
 import test
@@ -63,7 +64,6 @@ image_std = parser["image_std"]
 epoch = parser["epoch"]
 batch_size = parser["batch_size"]
 batch_log = parser["batch_log"]
-batch_interval = parser["batch_interval"]
 subdivision = parser["subdivision"]
 data_augmentation = parser["data_augmentation"]
 num_workers = parser["num_workers"]
@@ -90,8 +90,8 @@ parser = stream['mlflow']
 using_mlflow = parser["using_mlflow"]
 run_name = parser["run_name"]
 
-if mx.context.num_gpus() > 0 and using_cuda:
-    GPU_COUNT = mx.context.num_gpus()
+if torch.cuda.device_count() > 0 and using_cuda:
+    GPU_COUNT = torch.cuda.device_count()
 else:
     GPU_COUNT = 0
 
@@ -146,7 +146,6 @@ if __name__ == "__main__":
                   input_frame_number=input_frame_number,
                   batch_size=batch_size,
                   batch_log=batch_log,
-                  batch_interval=batch_interval,
                   subdivision=subdivision,
                   train_dataset_path=train_dataset_path,
                   valid_dataset_path=valid_dataset_path,
