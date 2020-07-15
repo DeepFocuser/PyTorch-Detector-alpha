@@ -10,6 +10,8 @@ import mlflow as ml
 import numpy as np
 import torch
 import torch.cuda.amp as amp
+from torch.nn import DataParallel
+from torch.optim import Adam, RMSprop, SGD
 from torch.utils.tensorboard import SummaryWriter
 from torchsummary import summary as modelsummary
 from tqdm import tqdm
@@ -79,10 +81,11 @@ def run(mean=[0.485, 0.456, 0.406],
     else:
         logging.info(f"{platform.system()} OS")
 
+    # free memory는 정확하지 않은 것 같고, torch.cuda.max_memory_allocated() 가 정확히 어떻게 동작하는지?
     if isinstance(device, (list, tuple)):
         for i, d in enumerate(device):
             total_memory = torch.cuda.get_device_properties(d).total_memory
-            free_memory = total_memory - torch.cuda.memory_allocated(d)
+            free_memory = total_memory - torch.cuda.max_memory_allocated(d)
             free_memory = round(free_memory / (1024**3), 2)
             total_memory = round(total_memory / (1024**3), 2)
             logging.info(f'{torch.cuda.get_device_name(d)}')
@@ -90,7 +93,7 @@ def run(mean=[0.485, 0.456, 0.406],
     else:
         if GPU_COUNT == 1:
             total_memory = torch.cuda.get_device_properties(device).total_memory
-            free_memory = total_memory - torch.cuda.memory_allocated(device)
+            free_memory = total_memory - torch.cuda.max_memory_allocated(device)
             free_memory = round(free_memory / (1024**3), 2)
             total_memory = round(total_memory / (1024**3), 2)
             logging.info(f'{torch.cuda.get_device_name(device)}')
@@ -102,8 +105,8 @@ def run(mean=[0.485, 0.456, 0.406],
         logging.info("batch size must be greater than gpu number")
         exit(0)
 
-    if AMP:
-        amp.init()
+    # if AMP:
+    #     amp.init()
 
     if data_augmentation:
         logging.info("Using Data Augmentation")
@@ -113,7 +116,6 @@ def run(mean=[0.485, 0.456, 0.406],
 
     scale_factor = 4  # 고정
     logging.info(f"scale factor {scale_factor}")
-
 
     train_dataloader, train_dataset = traindataloader(augmentation=data_augmentation,
                                                       path=train_dataset_path,
@@ -154,10 +156,9 @@ def run(mean=[0.485, 0.456, 0.406],
     else:
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_CENTER_RES" + str(base)
 
+    # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
     weight_path = os.path.join("weights", f"{model}")
     param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.pt')
-    # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
-    # optimizer_path = os.path.join(weight_path, f'{model}-{load_period:04d}.opt')
 
     start_epoch = 0
     net = CenterNet(base=base,
@@ -169,37 +170,63 @@ def run(mean=[0.485, 0.456, 0.406],
                     head_conv_channel=64,
                     pretrained=pretrained_base,
                     root=pretrained_path,
-                    use_dcnv2=False, ctx=ctx)
+                    use_dcnv2=False)
 
     # https://github.com/sksq96/pytorch-summary
-    modelsummary(net, input_shape)
+    if isinstance(device, (list, tuple)):
+        modelsummary(net.to(device[0]), input_shape)
+    else:
+        modelsummary(net.to(device), input_shape)
+
+    if tensorboard:
+        summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)
+        if isinstance(device, (list, tuple)):
+            summary.add_graph(net.to(device[0]), input_to_model=torch.ones(input_shape, device=device[0]), verbose=False)
+        else:
+            summary.add_graph(net.to(device), input_to_model=torch.ones(input_shape, device=device), verbose=False)
 
     if os.path.exists(param_path):
         start_epoch = load_period
-        logging.info(f"loading {os.path.basename(param_path)}\n")
         checkpoint = torch.load(param_path)
-        net.load_state_dict(checkpoint['model_state_dict'])
+        if 'model_state_dict' in checkpoint:
+            try:
+                net.load_state_dict(checkpoint['model_state_dict'])
+            except Exception as E:
+                logging.info(E)
+            else:
+                logging.info(f"loading model_state_dict\n")
 
+    if start_epoch + 1 >= epoch + 1:
+        logging.info("this model has already been optimized")
+        exit(0)
+
+    if optimizer.upper() == "ADAM":
+        trainer = Adam(net.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.000001)
+    elif optimizer.upper() == "RMSPROP":
+        trainer = RMSprop(net.parameters(), lr=learning_rate, alpha=0.99, weight_decay=0.000001, momentum=0)
+    elif optimizer.upper() == "SGD":
+        trainer = SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.000001)
+    else:
+        logging.error("optimizer not selected")
+        exit(0)
+
+    if os.path.exists(param_path):
         # optimizer weight 불러오기
+        checkpoint = torch.load(param_path)
         if 'optimizer_state_dict' in checkpoint:
             try:
-                net.load_state_dict(checkpoint['optimizer_state_dict'])
+                trainer.load_state_dict(checkpoint['optimizer_state_dict'])
             except Exception as E:
                 logging.info(E)
             else:
                 logging.info(f"loading optimizer_state_dict\n")
 
-
-            net.load_state_dict(torch.load(param_path))
-
-    if tensorboard:
-        summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)
-        if isinstance(device, (list, tuple)):
-            summary.add_graph(net, input_to_model=torch.ones(input_shape, device=device[0]), verbose=False)
-        else:
-            summary.add_graph(net, input_to_model=torch.ones(input_shape, device=device), verbose=False)
-
+    if GPU_COUNT > 0:
+        net = DataParallel(net)
+    
+    # center net 병렬 처리, lr scheduler, gradient, loss, prediction, preprocessing layer 업데이트 하기 등 알아보기
     # optimizer
+    # https://pytorch.org/docs/master/optim.html?highlight=lr%20sche#torch.optim.lr_scheduler.CosineAnnealingLR
     unit = 1 if (len(train_dataset) // batch_size) < 1 else len(train_dataset) // batch_size
     step = unit * decay_step
     lr_sch = mx.lr_scheduler.FactorScheduler(step=step, factor=decay_lr, stop_factor_lr=1e-12, base_lr=learning_rate)
@@ -208,45 +235,8 @@ def run(mean=[0.485, 0.456, 0.406],
         if p.grad_req != "null":
             p.grad_req = 'add'
 
-    '''
-    update_on_kvstore : bool, default None
-    Whether to perform parameter updates on kvstore. If None, then trainer will choose the more
-    suitable option depending on the type of kvstore. If the `update_on_kvstore` argument is
-    provided, environment variable `MXNET_UPDATE_ON_KVSTORE` will be ignored.
-    '''
-    if optimizer.upper() == "ADAM":
-        trainer = gluon.Trainer(net.collect_params(), optimizer, optimizer_params={"learning_rate": learning_rate,
-                                                                                   "lr_scheduler": lr_sch,
-                                                                                   "wd": 0.000001,
-                                                                                   "beta1": 0.9,
-                                                                                   "beta2": 0.999,
-                                                                                   'multi_precision': False},
-                                update_on_kvstore=False if AMP else None)  # for Dynamic loss scaling
-    elif optimizer.upper() == "RMSPROP":
-        trainer = gluon.Trainer(net.collect_params(), optimizer, optimizer_params={"learning_rate": learning_rate,
-                                                                                   "lr_scheduler": lr_sch,
-                                                                                   "wd": 0.000001,
-                                                                                   "gamma1": 0.9,
-                                                                                   "gamma2": 0.999,
-                                                                                   'multi_precision': False},
-                                update_on_kvstore=False if AMP else None)  # for Dynamic loss scaling
-    elif optimizer.upper() == "SGD":
-        trainer = gluon.Trainer(net.collect_params(), optimizer, optimizer_params={"learning_rate": learning_rate,
-                                                                                   "lr_scheduler": lr_sch,
-                                                                                   "wd": 0.000001,
-                                                                                   "momentum": 0.9,
-                                                                                   'multi_precision': False},
-                                update_on_kvstore=False if AMP else None)  # for Dynamic loss scaling
-    else:
-        logging.error("optimizer not selected")
-        exit(0)
-
-    if AMP:
-        amp.init_trainer(trainer)
-
-    if start_epoch + 1 >= epoch + 1:
-        logging.info("this model has already been optimized")
-        exit(0)
+    # if AMP:
+    #     amp.init_trainer(trainer)
 
     heatmapfocalloss = HeatmapFocalLoss(from_sigmoid=True, alpha=2, beta=4)
     normedl1loss = NormedL1Loss()
@@ -265,6 +255,7 @@ def run(mean=[0.485, 0.456, 0.406],
         target generator를 train_dataloader에서 만들어 버리는게 학습 속도가 훨씬 빠르다. 
         '''
 
+        # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
         for batch_count, (image, _, heatmap, offset_target, wh_target, mask_target, _) in enumerate(
                 train_dataloader,
                 start=1):

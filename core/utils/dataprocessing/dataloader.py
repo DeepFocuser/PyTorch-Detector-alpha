@@ -92,8 +92,6 @@ def traindataloader(augmentation=True, path="Dataset/train",
 
     num_workers = 0 if pin_memory else num_workers
 
-    # multiscale은 Dataset을 수정해야 한다.
-    # from gluoncv.data.dataloader import RandomTransformDataLoader / mxnet은 RandomTransformDataLoader을 제공한다.
     transform = CenterTrainTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std, scale_factor=scale_factor,
                                      augmentation=augmentation, make_target=make_target,
                                      num_classes=DetectionDataset(path=path).num_class)
