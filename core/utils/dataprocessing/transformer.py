@@ -17,8 +17,8 @@ class CenterTrainTransform(object):
         self._width = input_size[1]
         self._height = input_size[0]
         self._input_frame_number = input_frame_number
-        self._mean = torch.tensor(mean*input_frame_number).reshape((3*input_frame_number, 1, 1))
-        self._std = torch.tensor(std*input_frame_number).reshape((3*input_frame_number, 1, 1))
+        self._mean = torch.as_tensor(mean*input_frame_number).reshape((3*input_frame_number, 1, 1))
+        self._std = torch.as_tensor(std*input_frame_number).reshape((3*input_frame_number, 1, 1))
         self._toTensor = torchvision.transforms.ToTensor()
         self._scale_factor = scale_factor
         self._augmentation = augmentation
@@ -103,11 +103,12 @@ class CenterTrainTransform(object):
 
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
-            bbox = torch.tensor(bbox)
+            bbox = torch.as_tensor(bbox)
             heatmap, offset_target, wh_target, mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5],
                                                                                     output_w, output_h, img.device)
             return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], mask_target[0], name
         else:
+            bbox = torch.as_tensor(bbox)
             return img, bbox, name
 
 
@@ -117,8 +118,8 @@ class CenterValidTransform(object):
                  make_target=False, num_classes=3):
         self._width = input_size[1]
         self._height = input_size[0]
-        self._mean = torch.tensor(mean*input_frame_number).reshape((3*input_frame_number, 1, 1))
-        self._std = torch.tensor(std*input_frame_number).reshape((3*input_frame_number, 1, 1))
+        self._mean = torch.as_tensor(mean*input_frame_number).reshape((3*input_frame_number, 1, 1))
+        self._std = torch.as_tensor(std*input_frame_number).reshape((3*input_frame_number, 1, 1))
         self._toTensor = torchvision.transforms.ToTensor()
         self._scale_factor = scale_factor
         self._make_target = make_target
@@ -149,12 +150,13 @@ class CenterValidTransform(object):
 
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
-            bbox = torch.tensor(bbox)
+            bbox = torch.as_tensor(bbox)
             heatmap, offset_target, wh_target, mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5],
                                                                                     output_w, output_h, img.device)
 
             return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], mask_target[0], name
         else:
+            bbox = torch.as_tensor(bbox)
             return img, bbox, name
 
 
@@ -179,5 +181,5 @@ if __name__ == "__main__":
     '''
     images length: 1500
     image shape: torch.Size([6, 960, 1280])
-    label shape: (1, 5)
+    label shape: torch.Size([1, 5])
     '''

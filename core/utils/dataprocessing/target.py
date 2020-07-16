@@ -73,9 +73,9 @@ class TargetGenerator(nn.Module):
     def forward(self, gt_boxes, gt_ids, output_width, output_height, device):
 
         if isinstance(gt_boxes, torch.Tensor):
-            gt_boxes = gt_boxes.numpy()
+            gt_boxes = gt_boxes.cpu().numpy()
         if isinstance(gt_ids, torch.Tensor):
-            gt_ids = gt_ids.numpy()
+            gt_ids = gt_ids.cpu().numpy()
 
         batch_size = gt_boxes.shape[0]
         heatmap = np.zeros((batch_size, self._num_classes, output_height, output_width),
@@ -119,7 +119,7 @@ class TargetGenerator(nn.Module):
                 # mask
                 mask_target[batch, :, center_y, center_x] = 1.0
 
-        return tuple([torch.tensor(ele, device=device) for ele in (heatmap, offset_target, wh_target, mask_target)])
+        return tuple([torch.as_tensor(ele, device=device) for ele in (heatmap, offset_target, wh_target, mask_target)])
 
 
 # test

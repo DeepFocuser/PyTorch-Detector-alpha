@@ -40,7 +40,7 @@ def _pad_arrs_to_max_length(arrs, pad_axis, pad_val):
     ret_shape[pad_axis] = max_size
     ret_shape = (len(arrs),) + tuple(ret_shape)
     ret = torch.full(size=ret_shape, fill_value=pad_val, dtype=arrs[0].dtype)
-    original_length = torch.tensor(original_length, dtype=torch.int32)
+    original_length = torch.as_tensor(original_length, dtype=torch.int32)
 
     # arrs -> (batch, max object number, 5)
     for i, arr in enumerate(arrs):
@@ -83,7 +83,7 @@ class Stack(object):
             return batch
         else:
             out = np.asarray(batch)
-            return torch.tensor(out)
+            return torch.as_tensor(out)
 
 
 def traindataloader(augmentation=True, path="Dataset/train",
@@ -185,3 +185,9 @@ if __name__ == "__main__":
     print(f"images shape : {data.shape}")
     print(f"labels shape : {label.shape}")
     print(f"name : {name}")
+
+    '''
+    images shape : torch.Size([8, 6, 512, 512])
+    labels shape : torch.Size([8, 1, 5])
+    name : ['C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00001468.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000286.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000057.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000024.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00001313.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000889.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000152.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000787.jpg']
+    '''
