@@ -23,11 +23,9 @@
       <change beforePath="$PROJECT_DIR$/.idea/PyTorch-Detector.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PyTorch-Detector.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/utils/dataprocessing/dataloader.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/dataprocessing/dataloader.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ex.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/utils/util/mAP_voc.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/util/mAP_voc.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -52,25 +50,13 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../mountain/1frameYoloV3" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/core/utils/dataprocessing" />
     </key>
-  </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
-      <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
-      </list>
-    </option>
   </component>
   <component name="RunManager" selected="Python.ex">
     <configuration name="dataloader (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
@@ -206,19 +192,18 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State>
-              <option name="COLUMN_ORDER" />
-            </State>
+            <State />
           </value>
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl" timestamp="1594787098002">
+    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl" timestamp="1594886155236">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
-    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594787098002" />
+    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594886155236" />
     <state width="2472" height="411" key="GridCell.Tab.0.bottom" timestamp="1594820295887">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>

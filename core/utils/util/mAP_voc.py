@@ -88,11 +88,11 @@ class Voc_base_PR(object):
         gt_labels : mx.nd.ndarray /   (batch size , object number M)
         """
 
-        pred_bboxes = pred_bboxes.numpy()
-        pred_labels = pred_labels.numpy()
-        pred_scores = pred_scores.numpy()
-        gt_boxes = gt_boxes.numpy()
-        gt_labels = gt_labels.numpy()
+        pred_bboxes = pred_bboxes.cpu().numpy()
+        pred_labels = pred_labels.cpu().numpy()
+        pred_scores = pred_scores.cpu().numpy()
+        gt_boxes = gt_boxes.cpu().numpy()
+        gt_labels = gt_labels.cpu().numpy()
 
         for pred_bbox, pred_label, pred_score, gt_box, gt_label in zip(
                 pred_bboxes, pred_labels, pred_scores, gt_boxes, gt_labels):

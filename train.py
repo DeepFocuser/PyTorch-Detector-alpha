@@ -9,9 +9,11 @@ import cv2
 import mlflow as ml
 import numpy as np
 import torch
+import torch.autograd as autograd
 import torch.cuda.amp as amp
+import torchvision
 from torch.nn import DataParallel
-from torch.optim import Adam, RMSprop, SGD
+from torch.optim import Adam, RMSprop, SGD, lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from torchsummary import summary as modelsummary
 from tqdm import tqdm
@@ -222,18 +224,15 @@ def run(mean=[0.485, 0.456, 0.406],
                 logging.info(f"loading optimizer_state_dict\n")
 
     if GPU_COUNT > 0:
-        net = DataParallel(net)
-    
-    # center net 병렬 처리, lr scheduler, gradient, loss, prediction, preprocessing layer 업데이트 하기 등 알아보기
+        # output_device=torch.device("cpu")? data parallel시 gpu 불균형 사용 막기 위함.
+        net = DataParallel(net, device_ids=None, output_device=torch.device("cpu"), dim=0)
+
+    # center net 병렬 처리, gradient, loss, prediction, preprocessing layer 업데이트 하기 등 알아보기
     # optimizer
     # https://pytorch.org/docs/master/optim.html?highlight=lr%20sche#torch.optim.lr_scheduler.CosineAnnealingLR
     unit = 1 if (len(train_dataset) // batch_size) < 1 else len(train_dataset) // batch_size
     step = unit * decay_step
-    lr_sch = mx.lr_scheduler.FactorScheduler(step=step, factor=decay_lr, stop_factor_lr=1e-12, base_lr=learning_rate)
-
-    for p in net.collect_params().values():
-        if p.grad_req != "null":
-            p.grad_req = 'add'
+    lr_sch = lr_scheduler.StepLR(trainer, step, gamma=decay_lr, last_epoch=-1)
 
     # if AMP:
     #     amp.init_trainer(trainer)
@@ -251,107 +250,68 @@ def run(mean=[0.485, 0.456, 0.406],
         wh_loss_sum = 0
         time_stamp = time.time()
 
-        '''
-        target generator를 train_dataloader에서 만들어 버리는게 학습 속도가 훨씬 빠르다. 
-        '''
-
         # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
-        for batch_count, (image, _, heatmap, offset_target, wh_target, mask_target, _) in enumerate(
+        for batch_count, (image, _, heatmap_target, offset_target, wh_target, mask_target, _) in enumerate(
                 train_dataloader,
                 start=1):
+
             td_batch_size = image.shape[0]
+            trainer.zero_grad()
 
-            image_split = mx.nd.split(data=image, num_outputs=subdivision, axis=0)
-            heatmap_split = mx.nd.split(data=heatmap, num_outputs=subdivision, axis=0)
-            offset_target_split = mx.nd.split(data=offset_target, num_outputs=subdivision, axis=0)
-            wh_target_split = mx.nd.split(data=wh_target, num_outputs=subdivision, axis=0)
-            mask_target_split = mx.nd.split(data=mask_target, num_outputs=subdivision, axis=0)
+            if GPU_COUNT <= 1:
+                image = image.to(device)
+                heatmap_target = heatmap_target.to(device)
+                offset_target = offset_target.to(device)
+                wh_target = wh_target.to(device)
+                mask_target= mask_target.to(device)
 
-            if subdivision == 1:
-                image_split = [image_split]
-                heatmap_split = [heatmap_split]
-                offset_target_split = [offset_target_split]
-                wh_target_split = [wh_target_split]
-                mask_target_split = [mask_target_split]
+            image_split = torch.split(image, subdivision, dim=0)
+            heatmap_target_split = torch.split(heatmap_target, subdivision, dim=0)
+            offset_target_split = torch.split(offset_target, subdivision, dim=0)
+            wh_target_split = torch.split(wh_target, subdivision, dim=0)
+            mask_target_split = torch.split(mask_target, subdivision, dim=0)
 
-            '''
-            autograd 설명
-            https://mxnet.apache.org/api/python/docs/tutorials/getting-started/crash-course/3-autograd.html
-            '''
-            with autograd.record(train_mode=True):
+            heatmap_losses = []
+            offset_losses = []
+            wh_losses = []
+            total_loss = []
 
-                heatmap_all_losses = []
-                offset_all_losses = []
-                wh_all_losses = []
+            for image_part, heatmap_target_part, offset_target_part, wh_target_part, mask_target_part in zip(image_split,
+                                                                                                             heatmap_target_split,
+                                                                                                             offset_target_split,
+                                                                                                             wh_target_split,
+                                                                                                             mask_target_split):
 
-                for image_part, heatmap_part, offset_target_part, wh_target_part, mask_target_part in zip(image_split,
-                                                                                                          heatmap_split,
-                                                                                                          offset_target_split,
-                                                                                                          wh_target_split,
-                                                                                                          mask_target_split):
+                heatmap_pred, offset_pred, wh_pred = net(image_part)
+                heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target_part)
+                offset_loss = normedl1loss(offset_pred, offset_target_part, mask_target_part) * lambda_off
+                wh_loss = normedl1loss(wh_pred, wh_target_part, mask_target_part) * lambda_size
 
-                    if GPU_COUNT <= 1:
-                        image_part = gluon.utils.split_and_load(image_part, [ctx], even_split=False)
-                        heatmap_part = gluon.utils.split_and_load(heatmap_part, [ctx], even_split=False)
-                        offset_target_part = gluon.utils.split_and_load(offset_target_part, [ctx], even_split=False)
-                        wh_target_part = gluon.utils.split_and_load(wh_target_part, [ctx], even_split=False)
-                        mask_target_part = gluon.utils.split_and_load(mask_target_part, [ctx], even_split=False)
-                    else:
-                        image_part = gluon.utils.split_and_load(image_part, ctx, even_split=False)
-                        heatmap_part = gluon.utils.split_and_load(heatmap_part, ctx, even_split=False)
-                        offset_target_part = gluon.utils.split_and_load(offset_target_part, ctx, even_split=False)
-                        wh_target_part = gluon.utils.split_and_load(wh_target_part, ctx, even_split=False)
-                        mask_target_part = gluon.utils.split_and_load(mask_target_part, ctx, even_split=False)
+                heatmap_losses.append(heatmap_loss.item())
+                offset_losses.append(offset_loss.item())
+                wh_losses.append(wh_loss.item())
+                total_loss.append(heatmap_loss + offset_loss + wh_loss)
 
-                    # prediction, target space for Data Parallelism
-                    heatmap_losses = []
-                    offset_losses = []
-                    wh_losses = []
-                    total_loss = []
+            if AMP:
+                with amp.scale_loss(total_loss, trainer) as scaled_loss:
+                    autograd.backward(scaled_loss)
+            else:
+                autograd.backward(total_loss)
 
-                    # gpu N 개를 대비한 코드 (Data Parallelism)
-                    for img, heatmap_target, offset_target, wh_target, mask_target in zip(image_part, heatmap_part,
-                                                                                          offset_target_part,
-                                                                                          wh_target_part,
-                                                                                          mask_target_part):
-                        heatmap_pred, offset_pred, wh_pred = net(img)
-                        heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
-                        offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
-                        wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
+            trainer.step()
+            lr_sch.step()
 
-                        heatmap_losses.append(heatmap_loss.asscalar())
-                        offset_losses.append(offset_loss.asscalar())
-                        wh_losses.append(wh_loss.asscalar())
-
-                        total_loss.append(heatmap_loss + offset_loss + wh_loss)
-
-                    if AMP:
-                        with amp.scale_loss(total_loss, trainer) as scaled_loss:
-                            autograd.backward(scaled_loss)
-                    else:
-                        autograd.backward(total_loss)
-
-                    heatmap_all_losses.append(sum(heatmap_losses))
-                    offset_all_losses.append(sum(offset_losses))
-                    wh_all_losses.append(sum(wh_losses))
-
-            trainer.step(batch_size=td_batch_size, ignore_stale_grad=False)
-            # 비우기
-
-            for p in net.collect_params().values():
-                p.zero_grad()
-
-            heatmap_loss_sum += sum(heatmap_all_losses) / td_batch_size
-            offset_loss_sum += sum(offset_all_losses) / td_batch_size
-            wh_loss_sum += sum(wh_all_losses) / td_batch_size
+            heatmap_loss_sum += sum(heatmap_losses) / td_batch_size
+            offset_loss_sum += sum(offset_losses) / td_batch_size
+            wh_loss_sum += sum(wh_losses) / td_batch_size
 
             if batch_count % batch_log == 0:
                 logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}],'
                              f'[Speed {td_batch_size / (time.time() - time_stamp):.3f} samples/sec],'
                              f'[Lr = {trainer.learning_rate}]'
-                             f'[heatmap loss = {sum(heatmap_all_losses) / td_batch_size:.3f}]'
-                             f'[offset loss = {sum(offset_all_losses) / td_batch_size:.3f}]'
-                             f'[wh loss = {sum(wh_all_losses) / td_batch_size:.3f}]')
+                             f'[heatmap loss = {sum(heatmap_losses) / td_batch_size:.3f}]'
+                             f'[offset loss = {sum(offset_losses) / td_batch_size:.3f}]'
+                             f'[wh loss = {sum(wh_losses) / td_batch_size:.3f}]')
             time_stamp = time.time()
 
         train_heatmap_loss_mean = np.divide(heatmap_loss_sum, train_update_number_per_epoch)
@@ -411,9 +371,9 @@ def run(mean=[0.485, 0.456, 0.406],
                                            ctx=context,
                                            remove_amp_cast=True)
             except Exception as E:
-                logging.error(f"json, param model export 예외 발생 : {E}")
+                logging.error(f"jit, pt export 예외 발생 : {E}")
             else:
-                logging.info("json, param model export 성공")
+                logging.info("jit, pt export 성공")
                 net.collect_params().reset_ctx(ctx)
 
         if i % eval_period == 0 and valid_list:
@@ -423,56 +383,35 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_loss_sum = 0
 
             # loss 구하기
-            for image, label, heatmap_all, offset_target_all, wh_target_all, mask_target_all, _ in valid_dataloader:
+            for image, label, heatmap_target, offset_target, wh_target, mask_target, _ in valid_dataloader:
+
                 vd_batch_size = image.shape[0]
 
                 if GPU_COUNT <= 1:
-                    image = gluon.utils.split_and_load(image, [ctx], even_split=False)
-                    label = gluon.utils.split_and_load(label, [ctx], even_split=False)
-                    heatmap_split = gluon.utils.split_and_load(heatmap_all, [ctx], even_split=False)
-                    offset_target_split = gluon.utils.split_and_load(offset_target_all, [ctx], even_split=False)
-                    wh_target_split = gluon.utils.split_and_load(wh_target_all, [ctx], even_split=False)
-                    mask_target_split = gluon.utils.split_and_load(mask_target_all, [ctx], even_split=False)
-                else:
-                    image = gluon.utils.split_and_load(image, ctx, even_split=False)
-                    label = gluon.utils.split_and_load(label, ctx, even_split=False)
-                    heatmap_split = gluon.utils.split_and_load(heatmap_all, ctx, even_split=False)
-                    offset_target_split = gluon.utils.split_and_load(offset_target_all, ctx, even_split=False)
-                    wh_target_split = gluon.utils.split_and_load(wh_target_all, ctx, even_split=False)
-                    mask_target_split = gluon.utils.split_and_load(mask_target_all, ctx, even_split=False)
+                    image = image.to(device)
+                    label = label.to(device)
+                    heatmap_target = heatmap_target.to(device)
+                    offset_target = offset_target.to(device)
+                    wh_target = wh_target.to(device)
+                    mask_target = mask_target.to(device)
 
-                # prediction, target space for Data Parallelism
-                heatmap_losses = []
-                offset_losses = []
-                wh_losses = []
+                gt_box = label[:, :, :4]
+                gt_id = label[:, :, 4:5]
+                heatmap_pred, offset_pred, wh_pred = net(image)
+                id, score, bbox = prediction(heatmap_pred, offset_pred, wh_pred)
+                precision_recall.update(pred_bboxes=bbox,
+                                        pred_labels=id,
+                                        pred_scores=score,
+                                        gt_boxes=gt_box * scale_factor,
+                                        gt_labels=gt_id)
 
-                # gpu N 개를 대비한 코드 (Data Parallelism)
-                for img, lb, heatmap_target, offset_target, wh_target, mask_target in zip(image, label, heatmap_split,
-                                                                                          offset_target_split,
-                                                                                          wh_target_split,
-                                                                                          mask_target_split):
-                    gt_box = lb[:, :, :4]
-                    gt_id = lb[:, :, 4:5]
-                    heatmap_pred, offset_pred, wh_pred = net(img)
+                heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
+                offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
+                wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
 
-                    id, score, bbox = prediction(heatmap_pred, offset_pred, wh_pred)
-                    precision_recall.update(pred_bboxes=bbox,
-                                            pred_labels=id,
-                                            pred_scores=score,
-                                            gt_boxes=gt_box * scale_factor,
-                                            gt_labels=gt_id)
-
-                    heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
-                    offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
-                    wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
-
-                    heatmap_losses.append(heatmap_loss.asscalar())
-                    offset_losses.append(offset_loss.asscalar())
-                    wh_losses.append(wh_loss.asscalar())
-
-                heatmap_loss_sum += sum(heatmap_losses) / vd_batch_size
-                offset_loss_sum += sum(offset_losses) / vd_batch_size
-                wh_loss_sum += sum(wh_losses) / vd_batch_size
+                heatmap_loss_sum += heatmap_loss.item() / vd_batch_size
+                offset_loss_sum += offset_loss.item() / vd_batch_size
+                wh_loss_sum += wh_loss.item() / vd_batch_size
 
             valid_heatmap_loss_mean = np.divide(heatmap_loss_sum, valid_update_number_per_epoch)
             valid_offset_loss_mean = np.divide(offset_loss_sum, valid_update_number_per_epoch)
@@ -506,98 +445,92 @@ def run(mean=[0.485, 0.456, 0.406],
                 image, label, _, _, _, _, _ = next(dataloader_iter)
 
                 if GPU_COUNT <= 1:
-                    image = gluon.utils.split_and_load(image, [ctx], even_split=False)
-                    label = gluon.utils.split_and_load(label, [ctx], even_split=False)
-                else:
-                    image = gluon.utils.split_and_load(image, ctx, even_split=False)
-                    label = gluon.utils.split_and_load(label, ctx, even_split=False)
+                    image = image.to(device)
+                    label = label.to(device)
 
                 ground_truth_colors = {}
                 for k in range(num_classes):
                     ground_truth_colors[k] = (0, 0, 1)
 
                 batch_image = []
-                for img, lb in zip(image, label):
-                    gt_boxes = lb[:, :, :4]
-                    gt_ids = lb[:, :, 4:5]
-                    heatmap_pred, offset_pred, wh_pred = net(img)
-                    ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
+                gt_boxes = label[:, :, :4]
+                gt_ids = label[:, :, 4:5]
+                heatmap_pred, offset_pred, wh_pred = net(image)
+                ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
 
-                    for pair_ig, gt_id, gt_box, heatmap, id, score, bbox in zip(img, gt_ids, gt_boxes, heatmap_pred, ids,
-                                                                                scores, bboxes):
-                        split_ig = mx.nd.split(pair_ig, num_outputs=input_frame_number, axis=0)
-                        if input_frame_number == 1:
-                            split_ig = [split_ig]
+                # numpy로 바꾸기
+                image = image.cpu().numpy()
+                gt_ids = gt_ids.cpu().numpy()
+                gt_boxes = gt_boxes.cpu().numpy()
+                heatmap_pred = heatmap_pred.cpu().numpy()
+                ids = ids.cpu().numpy()
+                scores = scores.cpu().numpy()
+                bboxes = bboxes.cpu().numpy()
 
-                        hconcat_image_list = []
-                        for j, ig in enumerate(split_ig):
+                for img, gt_id, gt_box, heatmap, id, score, bbox in zip(image, gt_ids, gt_boxes, heatmap_pred, ids,
+                                                                        scores, bboxes):
+                    split_img = np.split(img, input_frame_number, axis=0)
+                    hconcat_image_list = []
+                    for j, ig in enumerate(split_img):
 
-                            ig = ig.transpose(
-                                (1, 2, 0)) * mx.nd.array(std, ctx=ig.context) + mx.nd.array(mean, ctx=ig.context)
-                            ig = (ig * 255).clip(0, 255)
+                        ig = ig.transpose((1, 2, 0)) * np.array(std) + np.array(mean)
+                        ig = (ig * 255).clip(0, 255)
 
-                            if j == len(split_ig)-1: # 마지막 이미지
+                        if j == len(split_img)-1: # 마지막 이미지
+                            # heatmap 그리기
+                            heatmap = mx.nd.multiply(heatmap, 255.0)  # 0 ~ 255 범위로 바꾸기
+                            heatmap = mx.nd.max(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
+                            heatmap = mx.nd.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
+                            heatmap = mx.nd.repeat(heatmap, repeats=3, axis=-1)  # (height, width, channel=3)
+                            heatmap = heatmap.asnumpy()  # mxnet.ndarray -> numpy.ndarray
+                            heatmap = heatmap.astype("uint8")  # float32 -> uint8
+                            heatmap = cv2.resize(heatmap, dsize=(input_size[1], input_size[0]))  # 사이즈 원복
+                            heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-                                # heatmap 그리기
-                                heatmap = mx.nd.multiply(heatmap, 255.0)  # 0 ~ 255 범위로 바꾸기
-                                heatmap = mx.nd.max(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
-                                heatmap = mx.nd.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
-                                heatmap = mx.nd.repeat(heatmap, repeats=3, axis=-1)  # (height, width, channel=3)
-                                heatmap = heatmap.asnumpy()  # mxnet.ndarray -> numpy.ndarray
-                                heatmap = heatmap.astype("uint8")  # float32 -> uint8
-                                heatmap = cv2.resize(heatmap, dsize=(input_size[1], input_size[0]))  # 사이즈 원복
-                                heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                            # ground truth box 그리기
+                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, labels=gt_id, thresh=None,
+                                                     reverse_rgb=True,
+                                                     class_names=valid_dataset.classes, absolute_coordinates=True,
+                                                     colors=ground_truth_colors)
+                            # prediction box 그리기
+                            prediction_box = plot_bbox(ground_truth, bbox, scores=score, labels=id,
+                                                       thresh=plot_class_thresh,
+                                                       reverse_rgb=False,
+                                                       class_names=valid_dataset.classes, absolute_coordinates=True)
+                            hconcat_image_list.append(prediction_box)
+                            hconcat_image_list.append(heatmap)
+                        else:
+                            ig = ig.astype(np.uint8)
+                            hconcat_image_list.append(ig)
 
-                                # ground truth box 그리기
-                                ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, labels=gt_id, thresh=None,
-                                                         reverse_rgb=True,
-                                                         class_names=valid_dataset.classes, absolute_coordinates=True,
-                                                         colors=ground_truth_colors)
-                                # prediction box 그리기
-                                prediction_box = plot_bbox(ground_truth, bbox, scores=score, labels=id,
-                                                           thresh=plot_class_thresh,
-                                                           reverse_rgb=False,
-                                                           class_names=valid_dataset.classes, absolute_coordinates=True)
-                                hconcat_image_list.append(prediction_box)
-                                hconcat_image_list.append(heatmap)
-                            else:
-                                ig = ig.asnumpy()
-                                hconcat_image_list.append(ig)
+                    hconcat_images = np.concatenate(hconcat_image_list, axis=1)
 
-                        hconcat_images = np.concatenate(hconcat_image_list, axis=1)
+                    # Tensorboard에 그리기 위해 BGR -> RGB / (height, width, channel) -> (channel, height, width) 를한다.
+                    hconcat_images = cv2.cvtColor(hconcat_images, cv2.COLOR_BGR2RGB)
+                    hconcat_images = np.transpose(hconcat_images, axes=(2, 0, 1))
+                    batch_image.append(hconcat_images)  # (batch, channel, height, width)
 
-                        # Tensorboard에 그리기 위해 BGR -> RGB / (height, width, channel) -> (channel, height, width) 를한다.
-                        hconcat_images = cv2.cvtColor(hconcat_images, cv2.COLOR_BGR2RGB)
-                        hconcat_images = np.transpose(hconcat_images,
-                                                      axes=(2, 0, 1))
-                        batch_image.append(hconcat_images)  # (batch, channel, height, width)
-
-                summary.add_image(tag="valid_result", image=np.array(batch_image), global_step=i)
-                summary.add_scalar(tag="heatmap_loss", value={"train_heatmap_loss_mean": train_heatmap_loss_mean,
-                                                              "valid_heatmap_loss_mean": valid_heatmap_loss_mean},
+                img_grid = torchvision.utils.make_grid(batch_image, nrow=1)
+                summary.add_image(tag="valid_result", img_tensor = img_grid, global_step=i)
+                summary.add_scalar(tag="heatmap_loss", scalar_value={"train_heatmap_loss_mean": train_heatmap_loss_mean,
+                                                                     "valid_heatmap_loss_mean": valid_heatmap_loss_mean},
                                    global_step=i)
                 summary.add_scalar(tag="offset_loss",
-                                   value={"train_offset_loss_mean": train_offset_loss_mean,
-                                          "valid_offset_loss_mean": valid_offset_loss_mean},
+                                   scalar_value={"train_offset_loss_mean": train_offset_loss_mean,
+                                                 "valid_offset_loss_mean": valid_offset_loss_mean},
                                    global_step=i)
                 summary.add_scalar(tag="wh_loss",
-                                   value={"train_wh_loss_mean": train_wh_loss_mean,
-                                          "valid_wh_loss_mean": valid_wh_loss_mean},
+                                   scalar_value={"train_wh_loss_mean": train_wh_loss_mean,
+                                                 "valid_wh_loss_mean": valid_wh_loss_mean},
                                    global_step=i)
 
-                summary.add_scalar(tag="total_loss", value={
+                summary.add_scalar(tag="total_loss", scalar_value={
                     "train_total_loss": train_total_loss_mean,
                     "valid_total_loss": valid_total_loss_mean},
                                    global_step=i)
 
-                params = net.collect_params().values()
-                if GPU_COUNT > 1:
-                    for c in ctx:
-                        for p in params:
-                            summary.add_histogram(tag=p.name, values=p.data(ctx=c), global_step=i, bins='default')
-                else:
-                    for p in params:
-                        summary.add_histogram(tag=p.name, values=p.data(), global_step=i, bins='default')
+                for name, param in net.named_parameters():
+                    summary.add_histogram(tag=name, values=param, global_step=i)
 
     end_time = time.time()
     learning_time = end_time - start_time
