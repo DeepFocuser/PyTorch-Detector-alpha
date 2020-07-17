@@ -19,10 +19,10 @@ from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
 # from core import CenterNet
-# from core import HeatmapFocalLoss, NormedL1Loss
-# from core import Prediction
+from core import HeatmapFocalLoss, NormedL1Loss
+from core import Prediction
 from core import Voc_2007_AP
-from core import plot_bbox  # , export_block_for_cplusplus, PostNet
+from core import plot_bbox, PrePostNet
 from core import traindataloader, validdataloader
 
 logfilepath = ""
@@ -30,6 +30,9 @@ if os.path.isfile(logfilepath):
     os.remove(logfilepath)
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
+
+# 초기화 참고하기
+# https://pytorch.org/docs/stable/nn.init.html?highlight=nn%20init#torch.nn.init.kaiming_normal_
 
 def run(mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
@@ -229,10 +232,9 @@ def run(mean=[0.485, 0.456, 0.406],
             else:
                 logging.info(f"loading optimizer_state_dict\n")
 
-    if GPU_COUNT > 0:
+    if isinstance(device, (list, tuple)):
         net = DataParallel(net, device_ids=device, output_device=context, dim=0)
 
-    # center net 병렬 처리, gradient, loss, prediction, preprocessing layer 업데이트 하기 등 알아보기
     # optimizer
     # https://pytorch.org/docs/master/optim.html?highlight=lr%20sche#torch.optim.lr_scheduler.CosineAnnealingLR
     unit = 1 if (len(train_dataset) // batch_size) < 1 else len(train_dataset) // batch_size
@@ -341,23 +343,32 @@ def run(mean=[0.485, 0.456, 0.406],
             f"train heatmap loss : {train_heatmap_loss_mean} / train offset loss : {train_offset_loss_mean} / train wh loss : {train_wh_loss_mean} / train total loss : {train_total_loss_mean}")
 
         if i % save_period == 0:
+
+            model = net.module if isinstance(device, (list, tuple)) else net
+            auxnet = Prediction(topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
+                                nms_thresh=nms_thresh)
+            prepostnet = PrePostNet(net=model, auxnet=auxnet)  # 새로운 객체가 생성
+
             try:
                 torch.save({
                     'model_state_dict': net.state_dict(),
                     'optimizer_state_dict': trainer.state_dict()}, os.path.join(weight_path, f'{model}-{i:04d}.pt'))
+                # https://pytorch.org/docs/master/generated/torch.jit.trace.html
+                # https://discuss.pytorch.org/t/how-to-trace-jit-in-evaluation-mode-using-multi-gpu-learned-model/33280
+                # https://discuss.pytorch.org/t/why-cannot-torch-jit-accelerate-training-speed/3212
+                # torch.jit.trace() 보다는 control-flow 연산 적용이 가능한 torch.jit.script() 을 사용하자
 
-                '''해결해야 할 문제2
-                torchscript 저장시 no grad 및 eval모드로 해야하는가?
-                다시 불러와서 학습이 가능한가? 궁금한 것들이 많다.
-                '''
-                script = torch.jit.script(net)
-                # trace = torch.jit.trace(script, torch.ones(*input_shape))
-                script.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
+                # torch.jit.script
+                # script = torch.jit.script(net.module)
+                # script.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
+                # torch.jit.trace
+                trace = torch.jit.trace(prepostnet, torch.ones(*input_shape, device=context))
+                trace.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
 
             except Exception as E:
-                logging.error(f"jit, pt export 예외 발생 : {E}")
+                logging.error(f"pt, jit export 예외 발생 : {E}")
             else:
-                logging.info("jit, pt export 성공")
+                logging.info("pt, jit export 성공")
 
         if i % eval_period == 0 and valid_list:
 

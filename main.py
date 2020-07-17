@@ -1,5 +1,3 @@
-import os
-
 import mlflow as ml
 import torch
 import yaml
@@ -7,21 +5,8 @@ import yaml
 import test
 import train
 
-# MXNET-ONNX EXPORT 지원 가능 함수 확인
-# -> https://github.com/apache/incubator-mxnet/tree/master/python/mxnet/contrib/onnx/mx2onnx
+#  Model, prediction, Amp, nms, prepost processing layer 코드 구현 해야함
 
-'''
-MXNET_CUDNN_AUTOTUNE_DEFAULT
-Values: 0, 1, or 2 (default=1)
-The default value of cudnn auto tuning for convolution layers.
-Value of 0 means there is no auto tuning to pick the convolution algorithm
-Performance tests are run to pick the convolution algo when value is 1 or 2
-Value of 1 chooses the best algo in a limited workspace
-Value of 2 chooses the fastest algo whose memory requirements may be larger than the default workspace threshold
-'''
-
-# https://mxnet.apache.org/api/faq/env_var
-os.environ["MXNET_CUDNN_AUTOTUNE_DEFAULT"] = "0"  # 메모리 사용 관련
 stream = yaml.load(open("configs/detector.yaml", "rt", encoding='UTF8'), Loader=yaml.SafeLoader)
 
 # dataset

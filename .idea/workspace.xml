@@ -20,16 +20,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b30ba2aa-7225-4317-b48b-4c9e452bdf0c" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/core/model/Center.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/model/LOSS.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/utils/dataprocessing/prediction.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/PyTorch-Detector.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/PyTorch-Detector.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/utils/dataprocessing/dataloader.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/dataprocessing/dataloader.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/utils/dataprocessing/target.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/dataprocessing/target.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/utils/dataprocessing/transformer.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/dataprocessing/transformer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/utils/util/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/core/utils/util/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/train.py" beforeDir="false" afterPath="$PROJECT_DIR$/train.py" afterDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -54,27 +55,16 @@
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/core/model" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/core/model" />
       <recent name="$PROJECT_DIR$/core/utils/dataprocessing" />
     </key>
   </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
-      <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
-      </list>
-    </option>
-  </component>
-  <component name="RunManager" selected="Python.target">
+  <component name="RunManager" selected="Python.dataloader">
     <configuration name="dataloader (1)" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="PyTorch-Detector" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -182,9 +172,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.dataloader" />
         <item itemvalue="Python.target" />
         <item itemvalue="Python.transformer" />
-        <item itemvalue="Python.dataloader" />
         <item itemvalue="Python.ex" />
         <item itemvalue="Python.dataloader (1)" />
       </list>
@@ -208,35 +198,39 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State>
-              <option name="COLUMN_ORDER" />
-            </State>
+            <State />
           </value>
         </entry>
       </map>
     </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl" timestamp="1594886155236">
+    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl" timestamp="1594973993913">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
-    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594886155236" />
-    <state width="2472" height="411" key="GridCell.Tab.0.bottom" timestamp="1594820295887">
+    <state x="3659" y="477" width="424" height="482" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594973993913" />
+    <state x="1136" y="493" key="FileChooserDialogImpl/65.24.2495.1416/2560.0.2560.1440@65.24.2495.1416" timestamp="1594961262760" />
+    <state width="2472" height="293" key="GridCell.Tab.0.bottom" timestamp="1594974436999">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
-    <state width="2472" height="411" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295887" />
-    <state width="2472" height="411" key="GridCell.Tab.0.center" timestamp="1594820295887">
+    <state width="2472" height="293" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594974436999" />
+    <state width="2472" height="293" key="GridCell.Tab.0.bottom/65.24.2495.1416/2560.0.2560.1440@65.24.2495.1416" timestamp="1594973807020" />
+    <state width="2472" height="293" key="GridCell.Tab.0.center" timestamp="1594974436999">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
-    <state width="2472" height="411" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295887" />
-    <state width="2472" height="411" key="GridCell.Tab.0.left" timestamp="1594820295886">
+    <state width="2472" height="293" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594974436999" />
+    <state width="2472" height="293" key="GridCell.Tab.0.center/65.24.2495.1416/2560.0.2560.1440@65.24.2495.1416" timestamp="1594973807019" />
+    <state width="2472" height="293" key="GridCell.Tab.0.left" timestamp="1594974436999">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
-    <state width="2472" height="411" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295886" />
-    <state width="2472" height="411" key="GridCell.Tab.0.right" timestamp="1594820295887">
+    <state width="2472" height="293" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594974436999" />
+    <state width="2472" height="293" key="GridCell.Tab.0.left/65.24.2495.1416/2560.0.2560.1440@65.24.2495.1416" timestamp="1594973807019" />
+    <state width="2472" height="293" key="GridCell.Tab.0.right" timestamp="1594974436999">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
-    <state width="2472" height="411" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594820295887" />
+    <state width="2472" height="293" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594974436999" />
+    <state width="2472" height="293" key="GridCell.Tab.0.right/65.24.2495.1416/2560.0.2560.1440@65.24.2495.1416" timestamp="1594973807019" />
     <state width="2472" height="501" key="GridCell.Tab.1.bottom" timestamp="1594785523681">
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
@@ -261,5 +255,9 @@
       <screen x="2560" y="0" width="2560" height="1440" />
     </state>
     <state x="3517" y="336" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594805325198" />
+    <state x="3549" y="323" width="616" height="831" key="find.popup" timestamp="1594981563201">
+      <screen x="2560" y="0" width="2560" height="1440" />
+    </state>
+    <state x="3549" y="323" width="616" height="831" key="find.popup/65.24.2495.1416/2560.0.2560.1440@2560.0.2560.1440" timestamp="1594981563201" />
   </component>
 </project>

@@ -114,3 +114,14 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
             cv2.waitKey(0)
 
         return result
+
+
+class PrePostNet(torch.nn.Module):
+    def __init__(self, net=None, auxnet=None):
+        super(PrePostNet, self).__init__()
+        self._net = net
+        self._auxnet = auxnet
+
+    def forward(self, x):
+        heatmap_pred, offset_pred, wh_pred = self._net(x)
+        return self._auxnet(heatmap_pred, offset_pred, wh_pred)
