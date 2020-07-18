@@ -3,9 +3,8 @@ import os
 import platform
 
 import cv2
-import mxnet as mx
-import mxnet.gluon as gluon
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from core import HeatmapFocalLoss, NormedL1Loss
@@ -20,6 +19,7 @@ if os.path.isfile(logfilepath):
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 
+# nograd, model.eval() 하기
 def run(input_frame_number=2,
         mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
@@ -41,9 +41,9 @@ def run(input_frame_number=2,
         nms_thresh=0.5,
         plot_class_thresh=0.5):
     if GPU_COUNT <= 0:
-        ctx = mx.cpu(0)
+        device = torch.device("cpu")
     elif GPU_COUNT > 0:
-        ctx = mx.gpu(0)
+        device = torch.device("cuda")
 
     # 운영체제 확인
     if platform.system() == "Linux":
@@ -54,12 +54,14 @@ def run(input_frame_number=2,
         logging.info(f"{platform.system()} OS")
 
     if GPU_COUNT > 0:
-        free_memory, total_memory = mx.context.gpu_memory_info(0)
-        free_memory = round(free_memory / (1024 * 1024 * 1024), 2)
-        total_memory = round(total_memory / (1024 * 1024 * 1024), 2)
-        logging.info(f'Running on {ctx} / free memory : {free_memory}GB / total memory {total_memory}GB')
+        total_memory = torch.cuda.get_device_properties(device).total_memory
+        free_memory = total_memory - torch.cuda.max_memory_allocated(device)
+        free_memory = round(free_memory / (1024 ** 3), 2)
+        total_memory = round(total_memory / (1024 ** 3), 2)
+        logging.info(f'{torch.cuda.get_device_name(device)}')
+        logging.info(f'Running on {device} / free memory : {free_memory}GB / total memory {total_memory}GB')
     else:
-        logging.info(f'Running on {ctx}')
+        logging.info(f'Running on {device}')
 
     logging.info(f"test {load_name}")
 
@@ -85,8 +87,7 @@ def run(input_frame_number=2,
         exit(0)
 
     weight_path = os.path.join(test_weight_path, load_name)
-    sym = os.path.join(weight_path, f'{load_name}-symbol.json')
-    params = os.path.join(weight_path, f'{load_name}-{load_period:04d}.params')
+    trace_path = os.path.join(weight_path, f'{load_name}-{load_period:04d}.params')
 
     test_update_number_per_epoch = len(test_dataloader)
     if test_update_number_per_epoch < 1:
@@ -96,19 +97,15 @@ def run(input_frame_number=2,
     num_classes = test_dataset.num_class  # 클래스 수
     name_classes = test_dataset.classes
 
-    logging.info("symbol model test")
+    logging.info("jit model test")
     try:
-        net = gluon.SymbolBlock.imports(sym,
-                                        ['data'],
-                                        params, ctx=ctx)
+        net = torch.jit.load(trace_path, map_location=device)
     except Exception:
         # DEBUG, INFO, WARNING, ERROR, CRITICAL 의 5가지 등급
-        logging.info("loading symbol weights 실패")
+        logging.info("loading jit 실패")
         exit(0)
     else:
-        logging.info("loading symbol weights 성공")
-
-    net.hybridize(active=True, static_alloc=True, static_shape=True)
+        logging.info("loading jit 성공")
 
     heatmapfocalloss = HeatmapFocalLoss(from_sigmoid=True, alpha=2, beta=4)
     normedl1loss = NormedL1Loss()
@@ -128,13 +125,12 @@ def run(input_frame_number=2,
     for image, label, name, origin_image, origin_box in tqdm(test_dataloader):
         _, height, width, _ = origin_image.shape
         logging.info(f"real input size : {(height, width)}")
-        origin_image = origin_image.asnumpy()[0]
-        origin_box = origin_box.asnumpy()[0]
 
-        image = image.as_in_context(ctx)
-        label = label.as_in_context(ctx)
+        image = image.to(device)
+        label = label.to(device)
         gt_boxes = label[:, :, :4]
         gt_ids = label[:, :, 4:5]
+
         heatmap_pred, offset_pred, wh_pred = net(image)
         ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
 
@@ -144,18 +140,17 @@ def run(input_frame_number=2,
                                 gt_boxes=gt_boxes * scale_factor,
                                 gt_labels=gt_ids)
 
-        heatmap = mx.nd.multiply(heatmap_pred[0], 255.0)  # 0 ~ 255 범위로 바꾸기
-        heatmap = mx.nd.max(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
-        heatmap = mx.nd.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
-        heatmap = mx.nd.repeat(heatmap, repeats=3, axis=-1)  # (height, width, channel=3)
-        heatmap = heatmap.asnumpy()  # mxnet.ndarray -> numpy.ndarray
+        heatmap = np.multiply(heatmap_pred.cpu().numpy()[0], 255.0)  # 0 ~ 255 범위로 바꾸기
+        heatmap = np.amax(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
+        heatmap = np.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
+        heatmap = np.repeat(heatmap, 3, axis=-1)
+        heatmap = heatmap.astype("uint8")  # float32 -> uint8
         heatmap = cv2.resize(heatmap, dsize=(width, height))  # 사이즈 원복
-        heatmap = heatmap.astype("uint8")
         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
         # heatmap, image add하기
-        bbox = box_resize(bboxes[0], (netwidth, netheight), (width, height))
-        ground_truth = plot_bbox(origin_image, origin_box[:, :4], scores=None, labels=origin_box[:, 4:5], thresh=None,
+        bbox = box_resize(bboxes.cpu().numpy()[0], (netwidth, netheight), (width, height))
+        ground_truth = plot_bbox(origin_image[0], origin_box[0][:, :4], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
                                  reverse_rgb=True,
                                  class_names=test_dataset.classes, absolute_coordinates=True,
                                  colors=ground_truth_colors)
@@ -168,14 +163,14 @@ def run(input_frame_number=2,
         heatmap_target, offset_target, wh_target, mask_target = targetgenerator(gt_boxes, gt_ids,
                                                                                 netwidth // scale_factor,
                                                                                 netheight // scale_factor,
-                                                                                image.context)
+                                                                                image.device)
         heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
         offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
         wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
 
-        heatmap_loss_sum += heatmap_loss.asscalar()
-        offset_loss_sum += offset_loss.asscalar()
-        wh_loss_sum += wh_loss.asscalar()
+        heatmap_loss_sum += heatmap_loss.item()
+        offset_loss_sum += offset_loss.item()
+        wh_loss_sum += wh_loss.item()
 
     # epoch 당 평균 loss
     test_heatmap_loss_mean = np.divide(heatmap_loss_sum, test_update_number_per_epoch)
