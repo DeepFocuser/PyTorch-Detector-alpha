@@ -1,7 +1,5 @@
 import torch
-import torchvision
 from torch.nn import Module, MaxPool2d
-
 
 class Prediction(Module):
 
@@ -15,8 +13,18 @@ class Prediction(Module):
         self._nms_thresh = nms_thresh
         self._except_class_thresh = except_class_thresh
 
-    def non_maximum_suppression(self):
-        pass
+    def non_maximum_suppression(self, ids, scores, bboxes, valid_thresh=0.2, overlap_thresh=0.5):
+
+        '''
+         # ex) thresh=0.01 이상인것만 뽑기
+        mask = scores > valid_thresh
+        ids = torch.where(mask, ids, torch.ones_like(ids) * -1)
+        scores = F.where(mask, scores, torch.ones_like(scores) * -1)
+        '''
+        # 1. score 내림차순 정렬 후, id score valid_thresh 보다 적은 것 -1로 채우기
+        # 2. box에 nms 적용
+
+        return ids, scores, bboxes
 
     def forward(self, heatmap, offset, wh):
         '''
@@ -83,25 +91,11 @@ class Prediction(Module):
         bboxes = torch.cat([bbox[:,:,None] for bbox in bboxes], dim=-1)  # (batch, self._topk, 1) ->  (batch, self._topk, 4)
 
         if self._nms:
-            results = torch.cat([ids, scores, bboxes * self._scale], dim=-1)
             if self._nms_thresh > 0 and self._nms_thresh < 1:
-                '''
-                Apply non-maximum suppression to input.
-                The output will be sorted in descending order according to score.
-                Boxes with overlaps larger than overlap_thresh,
-                smaller scores and background boxes will be removed and filled with -1,
-                '''
-                results = torchvision.ops.nms(
-                    results,
-                    valid_thresh=self._except_class_thresh,
-                    overlap_thresh=self._nms_thresh,
-                    topk=-1,
-                    id_index=0, score_index=1, coord_start=2,
-                    force_suppress=False, in_format="corner", out_format="corner")
-
-            ids = torch.slice_axis(results, axis=-1, begin=0, end=1)
-            scores = torch.slice_axis(results, axis=-1, begin=1, end=2)
-            bboxes = torch.slice_axis(results, axis=-1, begin=2, end=6)
+                ids, scores, bboxes = self.non_maximum_suppression(ids, scores, bboxes * self._scale,
+                                                                   valid_thresh=self._except_class_thresh,
+                                                                   overlap_thresh=self._nms_thresh,
+                                                                   topk=self._topk)
             return ids, scores, bboxes
         else:
             return ids, scores, bboxes * self._scale
