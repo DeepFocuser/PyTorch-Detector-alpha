@@ -4,6 +4,7 @@ import random
 import cv2
 import numpy as np
 import torch
+import torch.nn as nn
 from matplotlib import pyplot as plt
 
 
@@ -116,7 +117,7 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
         return result
 
 
-class PrePostNet(torch.nn.Module):
+class PrePostNet(nn.Module):
     def __init__(self, net=None, auxnet=None):
         super(PrePostNet, self).__init__()
         self._net = net

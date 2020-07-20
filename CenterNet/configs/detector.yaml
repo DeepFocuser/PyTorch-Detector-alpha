@@ -9,11 +9,11 @@ Dataset:
   save_path: result
   show_flag: False
   topk: 10
+  except_class_thresh: 0.01
   iou_thresh: 0.1
 
   # nms 관련
   nms: False
-  except_class_thresh: 0.01
   nms_thresh: 0.1
 
   plot_class_thresh: 0.1 # 그릴때 score_thresh 보다 큰 것들만 그린다.

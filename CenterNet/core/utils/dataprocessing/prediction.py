@@ -13,22 +13,64 @@ class Prediction(Module):
         self._nms_thresh = nms_thresh
         self._except_class_thresh = except_class_thresh
 
-    def _nms_center(self, ids, scores, bboxes, valid_thresh=0.2, overlap_thresh=0.5):
+    def _nms_center(self, ids, scores, bboxes, overlap_thresh=0.5):
 
+        '''
+        # import the necessary packages
+        import numpy as np
+        # Malisiewicz et al.
+        def non_max_suppression_fast(boxes, overlapThresh):
+            # if there are no boxes, return an empty list
+            if len(boxes) == 0:
+                return []
+            # if the bounding boxes integers, convert them to floats --
+            # this is important since we'll be doing a bunch of divisions
+            if boxes.dtype.kind == "i":
+                boxes = boxes.astype("float")
+            # initialize the list of picked indexes
+            pick = []
+            # grab the coordinates of the bounding boxes
+            x1 = boxes[:,0]
+            y1 = boxes[:,1]
+            x2 = boxes[:,2]
+            y2 = boxes[:,3]
+            # compute the area of the bounding boxes and sort the bounding
+            # boxes by the bottom-right y-coordinate of the bounding box
+            area = (x2 - x1 + 1) * (y2 - y1 + 1)
+            idxs = np.argsort(y2)
+            # keep looping while some indexes still remain in the indexes
+            # list
+            while len(idxs) > 0:
+                # grab the last index in the indexes list and add the
+                # index value to the list of picked indexes
+                last = len(idxs) - 1
+                i = idxs[last]
+                pick.append(i)
+                # find the largest (x, y) coordinates for the start of
+                # the bounding box and the smallest (x, y) coordinates
+                # for the end of the bounding box
+                xx1 = np.maximum(x1[i], x1[idxs[:last]])
+                yy1 = np.maximum(y1[i], y1[idxs[:last]])
+                xx2 = np.minimum(x2[i], x2[idxs[:last]])
+                yy2 = np.minimum(y2[i], y2[idxs[:last]])
+                # compute the width and height of the bounding box
+                w = np.maximum(0, xx2 - xx1 + 1)
+                h = np.maximum(0, yy2 - yy1 + 1)
+                # compute the ratio of overlap
+                overlap = (w * h) / area[idxs[:last]]
+                # delete all indexes from the index list that have
+                idxs = np.delete(idxs, np.concatenate(([last],
+                    np.where(overlap > overlapThresh)[0])))
+            # return only the bounding boxes that were picked using the
+            # integer data type
+            return boxes[pick].astype("int")
+
+        '''
         # 같은 카테고리에만
         pick = []
-        mask = scores > valid_thresh
-        ids = torch.where(mask, ids, torch.ones_like(ids) * -1)
-        scores = torch.where(mask, scores, torch.ones_like(scores) * -1)
-        bboxes_result = torch.zeros_like(bboxes, device=ids.device)
-
-        batch_xmin = torch.where(mask, bboxes[:,:,0:1], torch.ones_like(bboxes[:,:,0:1]) * -1)
-        batch_ymin = torch.where(mask, bboxes[:,:,1:2], torch.ones_like(bboxes[:,:,1:2]) * -1)
-        batch_xmax = torch.where(mask, bboxes[:,:,2:3], torch.ones_like(bboxes[:,:,2:3]) * -1)
-        batch_ymax = torch.where(mask, bboxes[:,:,3:4], torch.ones_like(bboxes[:,:,3:4]) * -1)
-
         # ids 클래스별로 나눠야함
-        for xmin, ymin, xmax, ymax in zip(batch_xmin, batch_ymin, batch_xmax, batch_ymax):
+        for id, score, xmin, ymin, xmax, ymax in zip(batch_xmin, batch_ymin, batch_xmax, batch_ymax):
+            # id별로 나누기
             area = (xmax - xmin + 1) * (ymax - ymin + 1) # (object number, 1)\
             i = 0
             while i < len(ids):
@@ -39,14 +81,15 @@ class Prediction(Module):
                 y2 = torch.where(ymax[i+1:] > xmin[i], xmin[i+1:], ymax[i])
                 w = x2 - x1 + 1
                 h = y2 - y1 + 1
-                iou = (w * h) / area[i+1:] # (object number, 1)
+                iou = (w * h) / area[:len(ids)-1] # (object number, 1)
                 id = torch.where(iou > overlap_thresh, id, torch.ones_like(id) * -1)
                 score = torch.where(iou > overlap_thresh, score, torch.ones_like(score) * -1)
-                x1 = torch.where(iou > overlap_thresh, x1, torch.ones_like(x1, device=ids.device)*-1)
-                y1 = torch.where(iou > overlap_thresh, y1, torch.ones_like(y1, device=ids.device)*-1)
-                x2 = torch.where(iou > overlap_thresh, x2, torch.ones_like(x2, device=ids.device)*-1)
-                y2 = torch.where(iou > overlap_thresh, y2, torch.ones_like(y2, device=ids.device)*-1)
+                x1 = torch.where(iou > overlap_thresh, torch.ones_like(x1, device=ids.device)*-1, x1)
+                y1 = torch.where(iou > overlap_thresh, torch.ones_like(y1, device=ids.device)*-1, y1)
+                x2 = torch.where(iou > overlap_thresh, torch.ones_like(x2, device=ids.device)*-1, x2)
+                y2 = torch.where(iou > overlap_thresh, torch.ones_like(y2, device=ids.device)*-1, y2)
                 box = torch.cat([x1, y1, x2, y2], dim=-1)
+                i+=1
 
                 # delete all indexes from the index list that have
 
@@ -91,7 +134,7 @@ class Prediction(Module):
         # https://mxnet.apache.org/api/python/docs/api/ndarray/ndarray.html?highlight=gather_nd#mxnet.ndarray.gather_nd
         # offset 에서 offset_xs를 index로 보고 뽑기 - gather_nd를 알고 나니 상당히 유용한 듯.
         # x index가 0번에 있고, y index가 1번에 있으므로!!!
-        batch_indices = torch.arange(self._batch_size)
+        batch_indices = torch.arange(self._batch_size, device=ids.device)
         batch_indices = batch_indices[:offset.shape[0], None]
         batch_indices = batch_indices.repeat_interleave(self._topk, dim=-1) # (batch, self._topk)
 
@@ -117,11 +160,18 @@ class Prediction(Module):
         bboxes = [topk_xs - half_w, topk_ys - half_h, topk_xs + half_w, topk_ys + half_h]  # 각각 (batch, self._topk)
         bboxes = torch.cat([bbox[:,:,None] for bbox in bboxes], dim=-1)  # (batch, self._topk, 1) ->  (batch, self._topk, 4)
 
+        except_mask = scores > self._except_class_thresh
+        ids = torch.where(except_mask, ids, torch.ones_like(ids) * -1)
+        scores = torch.where(except_mask, scores, torch.ones_like(scores) * -1)
+        xmin = torch.where(except_mask, bboxes[:,:,0:1], torch.ones_like(bboxes[:,:,0:1]) * -1)
+        ymin = torch.where(except_mask, bboxes[:,:,1:2], torch.ones_like(bboxes[:,:,1:2]) * -1)
+        xmax = torch.where(except_mask, bboxes[:,:,2:3], torch.ones_like(bboxes[:,:,2:3]) * -1)
+        ymax = torch.where(except_mask, bboxes[:,:,3:4], torch.ones_like(bboxes[:,:,3:4]) * -1)
+        bboxes = torch.cat([xmin, ymin, xmax, ymax],dim=-1)
+
         if self._nms:
             if self._nms_thresh > 0 and self._nms_thresh < 1:
-                ids, scores, bboxes = self._nms_center(ids, scores, bboxes * self._scale,
-                                                                           valid_thresh=self._except_class_thresh,
-                                                                           overlap_thresh=self._nms_thresh)
+                ids, scores, bboxes = self._nms_center(ids, scores, bboxes * self._scale, overlap_thresh=self._nms_thresh)
             return ids, scores, bboxes
         else:
             return ids, scores, bboxes * self._scale
