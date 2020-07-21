@@ -329,7 +329,7 @@ def run(mean=[0.485, 0.456, 0.406],
             module = net.module if isinstance(device, (list, tuple)) else net
             auxnet = Prediction(topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
                                 nms_thresh=nms_thresh)
-            prepostnet = PrePostNet(net=module, auxnet=auxnet)  # 새로운 객체가 생성
+            prepostnet = PrePostNet(net=module, auxnet=auxnet, input_frame_number=input_frame_number)  # 새로운 객체가 생성
 
             try:
                 torch.save({

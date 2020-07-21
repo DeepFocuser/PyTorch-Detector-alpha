@@ -116,13 +116,21 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
 
         return result
 
-
 class PrePostNet(nn.Module):
-    def __init__(self, net=None, auxnet=None):
+
+    def __init__(self, net=None, auxnet=None, input_frame_number=2):
         super(PrePostNet, self).__init__()
+
+        mean = torch.as_tensor([123.675, 116.28, 103.53]*input_frame_number).reshape((1, 1, 1, 3*input_frame_number))
+        scale = torch.as_tensor([58.395, 57.12, 57.375]*input_frame_number).reshape((1, 1, 1, 3*input_frame_number))
+        self._init_mean = torch.nn.Parameter(data=mean, requires_grad=False)
+        self._init_scale = torch.nn.Parameter(data=scale, requires_grad=False)
         self._net = net
         self._auxnet = auxnet
 
     def forward(self, x):
+        x = torch.sub(x, self._init_mean)
+        x = torch.div(x, self._init_scale)
+        x = x.permute(0, 3, 1, 2)
         heatmap_pred, offset_pred, wh_pred = self._net(x)
         return self._auxnet(heatmap_pred, offset_pred, wh_pred)
