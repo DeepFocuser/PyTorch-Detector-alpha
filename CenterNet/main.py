@@ -5,7 +5,7 @@ import yaml
 import test
 import train
 
-# Model, nms(직접 구현), prepost processing layer 코드 구현 해야함
+# nms 구현하기
 
 stream = yaml.load(open("configs/detector.yaml", "rt", encoding='UTF8'), Loader=yaml.SafeLoader)
 

@@ -73,6 +73,11 @@ def run(mean=[0.485, 0.456, 0.406],
     else:
         device = [torch.device(f"cuda:{i}") for i in range(0, GPU_COUNT)]
 
+    if isinstance(device, (list, tuple)):
+        context = device[0]
+    else:
+        context = device
+
     # 운영체제 확인
     if platform.system() == "Linux":
         logging.info(f"{platform.system()} OS")
@@ -169,18 +174,11 @@ def run(mean=[0.485, 0.456, 0.406],
                     pretrained=pretrained_base)
 
     # https://github.com/sksq96/pytorch-summary
-    if isinstance(device, (list, tuple)):
-        modelsummary(net.to(device[0]), input_shape[1:])
-    else:
-        modelsummary(net.to(device), input_shape[1:])
+    modelsummary(net.to(context), input_shape[1:])
 
     if tensorboard:
         summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)
-        if isinstance(device, (list, tuple)):
-            summary.add_graph(net.to(device[0]), input_to_model=torch.ones(input_shape, device=device[0]),
-                              verbose=False)
-        else:
-            summary.add_graph(net.to(device), input_to_model=torch.ones(input_shape, device=device), verbose=False)
+        summary.add_graph(net.to(context), input_to_model=torch.ones(input_shape, device=context), verbose=False)
 
     if os.path.exists(param_path):
         start_epoch = load_period
@@ -191,16 +189,12 @@ def run(mean=[0.485, 0.456, 0.406],
             except Exception as E:
                 logging.info(E)
             else:
-                logging.info(f"loading model_state_dict\n")
+                logging.info(f"loading model_state_dict")
 
     if start_epoch + 1 >= epoch + 1:
         logging.info("this model has already been optimized")
         exit(0)
 
-    if isinstance(device, (list, tuple)):
-        context = device[0]
-    else:
-        context = device
     net.to(context)
 
     if optimizer.upper() == "ADAM":
@@ -222,7 +216,7 @@ def run(mean=[0.485, 0.456, 0.406],
             except Exception as E:
                 logging.info(E)
             else:
-                logging.info(f"loading optimizer_state_dict\n")
+                logging.info(f"loading optimizer_state_dict")
 
     if isinstance(device, (list, tuple)):
         net = DataParallel(net, device_ids=device, output_device=context, dim=0)
@@ -329,26 +323,28 @@ def run(mean=[0.485, 0.456, 0.406],
 
         if i % save_period == 0:
 
-            model = net.module if isinstance(device, (list, tuple)) else net
+            if not os.path.exists(weight_path):
+                os.makedirs(weight_path)
+
+            module = net.module if isinstance(device, (list, tuple)) else net
             auxnet = Prediction(topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
                                 nms_thresh=nms_thresh)
-            prepostnet = PrePostNet(net=model, auxnet=auxnet)  # 새로운 객체가 생성
+            prepostnet = PrePostNet(net=module, auxnet=auxnet)  # 새로운 객체가 생성
 
             try:
                 torch.save({
                     'model_state_dict': net.state_dict(),
                     'optimizer_state_dict': trainer.state_dict()}, os.path.join(weight_path, f'{model}-{i:04d}.pt'))
-                # https://pytorch.org/docs/master/generated/torch.jit.trace.html
-                # https://discuss.pytorch.org/t/how-to-trace-jit-in-evaluation-mode-using-multi-gpu-learned-model/33280
-                # https://discuss.pytorch.org/t/why-cannot-torch-jit-accelerate-training-speed/3212
-                # torch.jit.trace() 보다는 control-flow 연산 적용이 가능한 torch.jit.script() 을 사용하자
 
+                # torch.jit.trace() 보다는 control-flow 연산 적용이 가능한 torch.jit.script() 을 사용하자
                 # torch.jit.script
-                # script = torch.jit.script(net.module)
-                # script.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
-                # torch.jit.trace
-                trace = torch.jit.trace(prepostnet, torch.ones(*input_shape, device=context))
-                trace.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
+                script = torch.jit.script(prepostnet)
+                script.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
+
+                # # torch.jit.trace - 안 써짐
+                # 오류 : Expected object of device type cuda but got device type cpu for argument #2 'other' in call to _th_fmod
+                # trace = torch.jit.trace(prepostnet, torch.rand(input_shape[0], input_shape[1], input_shape[2], input_shape[3], device=context))
+                # trace.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
 
             except Exception as E:
                 logging.error(f"pt, jit export 예외 발생 : {E}")
@@ -420,7 +416,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 batch_image = []
                 ground_truth_colors = {}
                 for k in range(num_classes):
-                    ground_truth_colors[k] = (0, 0, 1)
+                    ground_truth_colors[k] = (0, 1, 0) # RGB
 
                 dataloader_iter = iter(valid_dataloader)
                 image, label, _, _, _, _, _ = next(dataloader_iter)
@@ -462,10 +458,11 @@ def run(mean=[0.485, 0.456, 0.406],
                             heatmap = heatmap.astype("uint8")  # float32 -> uint8
                             heatmap = cv2.resize(heatmap, dsize=(input_size[1], input_size[0]))  # 사이즈 원복
                             heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+                            heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
                             # ground truth box 그리기
                             ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, labels=gt_id, thresh=None,
-                                                     reverse_rgb=True,
+                                                     reverse_rgb=False,
                                                      class_names=valid_dataset.classes,
                                                      absolute_coordinates=True,
                                                      colors=ground_truth_colors)
@@ -482,28 +479,39 @@ def run(mean=[0.485, 0.456, 0.406],
 
                     hconcat_images = np.concatenate(hconcat_image_list, axis=1)
 
-                    # Tensorboard에 그리기 위해 BGR -> RGB / (height, width, channel) -> (channel, height, width) 를한다.
-                    hconcat_images = cv2.cvtColor(hconcat_images, cv2.COLOR_BGR2RGB)
+                    # Tensorboard에 그리기 위해 (height, width, channel) -> (channel, height, width) 를한다.
                     hconcat_images = np.transpose(hconcat_images, axes=(2, 0, 1))
                     batch_image.append(hconcat_images)  # (batch, channel, height, width)
 
-                img_grid = torchvision.utils.make_grid(batch_image, nrow=1)
+                img_grid = torchvision.utils.make_grid(torch.as_tensor(batch_image), nrow=1)
                 summary.add_image(tag="valid_result", img_tensor=img_grid, global_step=i)
-                summary.add_scalar(tag="heatmap_loss", scalar_value={"train_heatmap_loss_mean": train_heatmap_loss_mean,
-                                                                     "valid_heatmap_loss_mean": valid_heatmap_loss_mean},
+
+                summary.add_scalar(tag="heatmap_loss/train_heatmap_loss_mean",
+                                   scalar_value=train_heatmap_loss_mean,
                                    global_step=i)
-                summary.add_scalar(tag="offset_loss",
-                                   scalar_value={"train_offset_loss_mean": train_offset_loss_mean,
-                                                 "valid_offset_loss_mean": valid_offset_loss_mean},
-                                   global_step=i)
-                summary.add_scalar(tag="wh_loss",
-                                   scalar_value={"train_wh_loss_mean": train_wh_loss_mean,
-                                                 "valid_wh_loss_mean": valid_wh_loss_mean},
+                summary.add_scalar(tag="heatmap_loss/valid_heatmap_loss_mean",
+                                   scalar_value=valid_heatmap_loss_mean,
                                    global_step=i)
 
-                summary.add_scalar(tag="total_loss", scalar_value={
-                    "train_total_loss": train_total_loss_mean,
-                    "valid_total_loss": valid_total_loss_mean},
+                summary.add_scalar(tag="offset_loss/train_offset_loss_mean",
+                                   scalar_value=train_offset_loss_mean,
+                                   global_step=i)
+                summary.add_scalar(tag="offset_loss/valid_offset_loss_mean",
+                                   scalar_value=valid_offset_loss_mean,
+                                   global_step=i)
+
+                summary.add_scalar(tag="wh_loss/train_wh_loss_mean",
+                                   scalar_value=train_wh_loss_mean,
+                                   global_step=i)
+                summary.add_scalar(tag="wh_loss/valid_wh_loss_mean",
+                                   scalar_value=valid_wh_loss_mean,
+                                   global_step=i)
+
+                summary.add_scalar(tag="total_loss/train_total_loss",
+                                   scalar_value = train_total_loss_mean,
+                                   global_step=i)
+                summary.add_scalar(tag="total_loss/valid_total_loss",
+                                   scalar_value = valid_total_loss_mean,
                                    global_step=i)
 
                 for name, param in net.named_parameters():
