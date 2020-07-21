@@ -77,22 +77,22 @@ class Voc_base_PR(object):
 
         """
         최종 network 출력 결과물(depcoder + nms)
-        pred_boxes : mx.nd.ndarray / shape : (batch size , object number N, 4)
+        pred_boxes : torch.tensor / shape : (batch size , object number N, 4)
         (N is the number of bbox)
-        pred_labels : mx.nd.ndarray / shape : (batch size , object number)
-        pred_scores : mx.nd.ndarray / shape : (batch size , object number)
+        pred_labels : torch.tensor / shape : (batch size , object number)
+        pred_scores : torch.tensor / shape : (batch size , object number)
 
         Ground truth를 normalization한 결과물
-        gt_boxes : mx.nd.ndarray / shape : (batch size , object number M, 4
+        gt_boxes : torch.tensor / shape : (batch size , object number M, 4
         (M is the number of ground-truths)
-        gt_labels : mx.nd.ndarray /   (batch size , object number M)
+        gt_labels : torch.tensor /   (batch size , object number M)
         """
 
-        pred_bboxes = pred_bboxes.cpu().numpy()
-        pred_labels = pred_labels.cpu().numpy()
-        pred_scores = pred_scores.cpu().numpy()
-        gt_boxes = gt_boxes.cpu().numpy()
-        gt_labels = gt_labels.cpu().numpy()
+        pred_bboxes = pred_bboxes.detach().cpu().numpy()
+        pred_labels = pred_labels.detach().cpu().numpy()
+        pred_scores = pred_scores.detach().cpu().numpy()
+        gt_boxes = gt_boxes.detach().cpu().numpy()
+        gt_labels = gt_labels.detach().cpu().numpy()
 
         for pred_bbox, pred_label, pred_score, gt_box, gt_label in zip(
                 pred_bboxes, pred_labels, pred_scores, gt_boxes, gt_labels):
@@ -380,94 +380,88 @@ class Voc_2010_AP(Voc_base_PR):
         return name, AP
 
 
-# if __name__ == "__main__":
-#     import random
-#     from core import CenterNet, DetectionDataset, CenterValidTransform
-#     from core import Prediction
-#     from collections import OrderedDict
-#     import mxnet as mx
-#
-#     input_size = (512, 512)
-#     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-#     transform = CenterValidTransform(input_size, mean=(0.485, 0.456, 0.406),
-#                                      std=(0.229, 0.224, 0.225), make_target=False)
-#     dataset = DetectionDataset(path=os.path.join(root, 'Dataset', 'train'), transform=transform)
-#     num_classes = dataset.num_class
-#     name_classes = dataset.classes
-#     length = len(dataset)
-#     image, label, _, _, _ = dataset[random.randint(0, length - 1)]
-#
-#     net = CenterNet(base=18,
-#                     heads=OrderedDict([
-#                         ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
-#                         ('offset', {'num_output': 2}),
-#                         ('wh', {'num_output': 2})
-#                     ]),
-#                     head_conv_channel=64, pretrained=False,
-#                     root=os.path.join(root, "modelparam"),
-#                     use_dcnv2=False,
-#                     ctx=mx.cpu())
-#     net.hybridize(active=True, static_alloc=True, static_shape=True)
-#
-#     prediction = Prediction(topk=100, scale=4)
-#     precision_recall_2007 = Voc_2007_AP(iou_thresh=0.5, class_names=name_classes)
-#     precision_recall_2010 = Voc_2010_AP(iou_thresh=0.5, class_names=name_classes)
-#
-#     # batch 형태로 만들기
-#     data = image.expand_dims(axis=0)
-#     label = np.expand_dims(label, axis=0)
-#     label = mx.nd.array(label)
-#
-#     gt_boxes = label[:, :, :4]
-#     gt_ids = label[:, :, 4:5]
-#
-#     heatmap_pred, offset_pred, wh_pred = net(data)
-#     ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
-#
-#     precision_recall_2007.update(pred_bboxes=bboxes,
-#                                  pred_labels=ids,
-#                                  pred_scores=scores,
-#                                  gt_boxes=gt_boxes * 4,
-#                                  gt_labels=gt_ids)
-#     precision_recall_2010.update(pred_bboxes=bboxes,
-#                                  pred_labels=ids,
-#                                  pred_scores=scores,
-#                                  gt_boxes=gt_boxes * 4,
-#                                  gt_labels=gt_ids)
-#
-#     AP_appender = []
-#     round_position = 2
-#     class_name, precision, recall, true_positive, false_positive, threshold = precision_recall_2007.get_PR_list()
-#     print("<<< voc2007 >>>")
-#     for i, c, p, r in zip(range(len(recall)), class_name, precision, recall):
-#         name, AP = precision_recall_2007.get_AP(c, p, r)
-#         print(f"class {i}'s {name} AP : {round(AP * 100, round_position)} %")
-#         AP_appender.append(AP)
-#     mAP_result = np.mean(AP_appender)
-#
-#     print(f"mAP : {round(mAP_result * 100, round_position)} %")
-#     precision_recall_2007.get_PR_curve(name=class_name,
-#                                        precision=precision,
-#                                        recall=recall,
-#                                        threshold=threshold,
-#                                        AP=AP_appender, mAP=mAP_result, root=root)
-#     print("\n")
-#
-#     AP_appender = []
-#     class_name, precision, recall, true_positive, false_positive, threshold = precision_recall_2010.get_PR_list()
-#
-#     print("<<< voc2010 >>>")
-#     for i, c, p, r in zip(range(len(recall)), class_name, precision, recall):
-#         name, AP = precision_recall_2010.get_AP(c, p, r)
-#         print(f"class {i}'s {name} AP : {round(AP * 100, round_position)} %")
-#         AP_appender.append(AP)
-#
-#     # 각 클래스별 ap 확률 막대로 표시하고 맨 위에 mAP 표시해주기
-#     mAP_result = np.mean(AP_appender)
-#     print(f"mAP : {round(mAP_result * 100, round_position)} %")
-#
-#     precision_recall_2010.get_PR_curve(name=class_name,
-#                                        precision=precision,
-#                                        recall=recall,
-#                                        threshold=threshold,
-#                                        AP=AP_appender, mAP=mAP_result, root=root)
+if __name__ == "__main__":
+    import random
+    from core import CenterNet, DetectionDataset, CenterValidTransform
+    from core import Prediction
+    from collections import OrderedDict
+
+    input_size = (512, 512)
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    transform = CenterValidTransform(input_size, mean=(0.485, 0.456, 0.406),
+                                     std=(0.229, 0.224, 0.225), make_target=False)
+    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform)
+    num_classes = dataset.num_class
+    name_classes = dataset.classes
+    length = len(dataset)
+    image, label, _, _, _ = dataset[random.randint(0, length - 1)]
+
+    net = CenterNet(base=18,
+                    heads=OrderedDict([
+                        ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
+                        ('offset', {'num_output': 2}),
+                        ('wh', {'num_output': 2})
+                    ]),
+                    head_conv_channel=64, pretrained=False)
+
+    prediction = Prediction(topk=100, scale=4)
+    precision_recall_2007 = Voc_2007_AP(iou_thresh=0.5, class_names=name_classes)
+    precision_recall_2010 = Voc_2010_AP(iou_thresh=0.5, class_names=name_classes)
+
+    # batch 형태로 만들기
+    data = image[None, :, :, :]
+    label = label[None, : , :]
+
+    gt_boxes = label[:, :, :4]
+    gt_ids = label[:, :, 4:5]
+
+    heatmap_pred, offset_pred, wh_pred = net(data)
+    ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
+
+    precision_recall_2007.update(pred_bboxes=bboxes,
+                                 pred_labels=ids,
+                                 pred_scores=scores,
+                                 gt_boxes=gt_boxes * 4,
+                                 gt_labels=gt_ids)
+    precision_recall_2010.update(pred_bboxes=bboxes,
+                                 pred_labels=ids,
+                                 pred_scores=scores,
+                                 gt_boxes=gt_boxes * 4,
+                                 gt_labels=gt_ids)
+
+    AP_appender = []
+    round_position = 2
+    class_name, precision, recall, true_positive, false_positive, threshold = precision_recall_2007.get_PR_list()
+    print("<<< voc2007 >>>")
+    for i, c, p, r in zip(range(len(recall)), class_name, precision, recall):
+        name, AP = precision_recall_2007.get_AP(c, p, r)
+        print(f"class {i}'s {name} AP : {round(AP * 100, round_position)} %")
+        AP_appender.append(AP)
+    mAP_result = np.mean(AP_appender)
+
+    print(f"mAP : {round(mAP_result * 100, round_position)} %")
+    precision_recall_2007.get_PR_curve(name=class_name,
+                                       precision=precision,
+                                       recall=recall,
+                                       threshold=threshold,
+                                       AP=AP_appender, mAP=mAP_result, root=root)
+    print("\n")
+
+    AP_appender = []
+    class_name, precision, recall, true_positive, false_positive, threshold = precision_recall_2010.get_PR_list()
+
+    print("<<< voc2010 >>>")
+    for i, c, p, r in zip(range(len(recall)), class_name, precision, recall):
+        name, AP = precision_recall_2010.get_AP(c, p, r)
+        print(f"class {i}'s {name} AP : {round(AP * 100, round_position)} %")
+        AP_appender.append(AP)
+
+    # 각 클래스별 ap 확률 막대로 표시하고 맨 위에 mAP 표시해주기
+    mAP_result = np.mean(AP_appender)
+    print(f"mAP : {round(mAP_result * 100, round_position)} %")
+
+    precision_recall_2010.get_PR_curve(name=class_name,
+                                       precision=precision,
+                                       recall=recall,
+                                       threshold=threshold,
+                                       AP=AP_appender, mAP=mAP_result, root=root)

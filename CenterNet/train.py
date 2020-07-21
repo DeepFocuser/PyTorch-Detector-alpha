@@ -17,7 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
-# from core import CenterNet
+from core import CenterNet
 from core import HeatmapFocalLoss, NormedL1Loss
 from core import Prediction
 from core import Voc_2007_AP
@@ -54,7 +54,6 @@ def run(mean=[0.485, 0.456, 0.406],
         GPU_COUNT=0,
         base=18,
         pretrained_base=True,
-        pretrained_path="modelparam",
         valid_size=8,
         eval_period=5,
         tensorboard=True,
@@ -160,21 +159,20 @@ def run(mean=[0.485, 0.456, 0.406],
 
     start_epoch = 0
     net = CenterNet(base=base,
+                    input_frame_number=input_frame_number,
                     heads=OrderedDict([
                         ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
                         ('wh', {'num_output': 2})
                     ]),
                     head_conv_channel=64,
-                    pretrained=pretrained_base,
-                    root=pretrained_path,
-                    use_dcnv2=False)
+                    pretrained=pretrained_base)
 
     # https://github.com/sksq96/pytorch-summary
     if isinstance(device, (list, tuple)):
-        modelsummary(net.to(device[0]), input_shape)
+        modelsummary(net.to(device[0]), input_shape[1:])
     else:
-        modelsummary(net.to(device), input_shape)
+        modelsummary(net.to(device), input_shape[1:])
 
     if tensorboard:
         summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)
@@ -203,7 +201,7 @@ def run(mean=[0.485, 0.456, 0.406],
         context = device[0]
     else:
         context = device
-    net = net.to(context)
+    net.to(context)
 
     if optimizer.upper() == "ADAM":
         trainer = Adam(net.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.000001)
@@ -315,7 +313,7 @@ def run(mean=[0.485, 0.456, 0.406],
             if batch_count % batch_log == 0:
                 logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}],'
                              f'[Speed {image.shape[0] / (time.time() - time_stamp):.3f} samples/sec],'
-                             f'[Lr = {trainer.learning_rate}]'
+                             f'[Lr = {lr_sch.get_last_lr()}]'
                              f'[heatmap loss = {sum(heatmap_losses):.3f}]'
                              f'[offset loss = {sum(offset_losses):.3f}]'
                              f'[wh loss = {sum(wh_losses):.3f}]')
@@ -436,13 +434,13 @@ def run(mean=[0.485, 0.456, 0.406],
                 ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
 
                 # numpy로 바꾸기
-                image = image.cpu().numpy()
-                gt_ids = gt_ids.cpu().numpy()
-                gt_boxes = gt_boxes.cpu().numpy()
-                heatmap_pred = heatmap_pred.cpu().numpy()
-                ids = ids.cpu().numpy()
-                scores = scores.cpu().numpy()
-                bboxes = bboxes.cpu().numpy()
+                image = image.detach().cpu().numpy()
+                gt_ids = gt_ids.detach().cpu().numpy()
+                gt_boxes = gt_boxes.detach().cpu().numpy()
+                heatmap_pred = heatmap_pred.detach().cpu().numpy()
+                ids = ids.detach().cpu().numpy()
+                scores = scores.detach().cpu().numpy()
+                bboxes = bboxes.detach().cpu().numpy()
 
                 for img, gt_id, gt_box, heatmap, id, score, bbox in zip(image, gt_ids, gt_boxes, heatmap_pred, ids,
                                                                         scores, bboxes):
@@ -542,7 +540,6 @@ if __name__ == "__main__":
         GPU_COUNT=0,
         base=18,
         pretrained_base=True,
-        pretrained_path="modelparam",
         valid_size=8,
         eval_period=5,
         tensorboard=True,

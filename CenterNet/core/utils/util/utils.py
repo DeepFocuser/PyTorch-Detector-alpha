@@ -28,7 +28,7 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
 
     if len(bboxes) < 1:
         if isinstance(img, torch.Tensor):
-            img = img.cpu().numpy()
+            img = img.detach().cpu().numpy()
         if image_save:
             cv2.imwrite(os.path.join(image_save_path, image_name + ".jpg"), img)
         if image_show:
@@ -36,13 +36,13 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
             cv2.waitKey(0)
     else:
         if isinstance(img, torch.Tensor):
-            img = img.cpu().numpy()
+            img = img.detach().cpu().numpy()
         if isinstance(bboxes, torch.Tensor):
-            bboxes = bboxes.cpu().numpy()
+            bboxes = bboxes.detach().cpu().numpy()
         if isinstance(labels, torch.Tensor):
-            labels = labels.cpu().numpy()
+            labels = labels.detach().cpu().numpy()
         if isinstance(scores, torch.Tensor):
-            scores = scores.cpu().numpy()
+            scores = scores.detach().cpu().numpy()
 
         if reverse_rgb:
             img[:, :, (0, 1, 2)] = img[:, :, (2, 1, 0)]

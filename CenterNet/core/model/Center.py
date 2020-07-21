@@ -4,7 +4,6 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from core.model.backbone.UpConvResNet import get_upconv_resnet
 
@@ -15,30 +14,61 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 class CenterNet(nn.Module):
 
-    def __init__(self, base=18, heads=OrderedDict(), head_conv_channel=64, pretrained=True):
+    def __init__(self, base=18, input_frame_number=2, heads=OrderedDict(), head_conv_channel=64, pretrained=True):
         super(CenterNet, self).__init__()
 
-        with self.name_scope():
-            self._base_network = get_upconv_resnet(base=base, pretrained=pretrained)
-            _, in_channels, _, _ = self._base_network(torch.rand(1, 3, 512, 512)).shape
-            heads = []
-            for name, values in heads.items():
-                num_output = values['num_output']
-                bias = values.get('bias', 0.0)
-                heads.append(nn.Conv2d(in_channels ,head_conv_channel, kernel_size=3, padding=1, bias=True))
-                heads.append(nn.ReLU(inplace=True))
-                heads.append(nn.Conv2d(head_conv_channel, num_output, kernel_size=1, bias=True, bias_initializer=mx.init.Constant(bias)))
-            self._heads = nn.Sequential(*heads)
+        self._base_network = get_upconv_resnet(base=base, pretrained=pretrained, input_frame_number=input_frame_number)
+        _, in_channels, _, _ = self._base_network(torch.rand(1, input_frame_number*3, 512, 512)).shape
+
+        heatmap = []
+        offset = []
+        wh = []
+
+        # heatmap
+        num_output = heads['heatmap']["num_output"]
+        bias = heads['heatmap'].get('bias', 0.0)
+        heatmap.append(nn.Conv2d(in_channels, head_conv_channel, kernel_size=3, padding=1, bias=True))
+        heatmap.append(nn.ReLU(inplace=True))
+        temp = nn.Conv2d(head_conv_channel, num_output, kernel_size=1, bias=True)
+        temp.bias.data.fill_(bias)
+        heatmap.append(temp)
+
+        # offset
+        num_output = heads['offset']["num_output"]
+        bias = heads['offset'].get('bias', 0.0)
+        offset.append(nn.Conv2d(in_channels, head_conv_channel, kernel_size=3, padding=1, bias=True))
+        offset.append(nn.ReLU(inplace=True))
+        temp = nn.Conv2d(head_conv_channel, num_output, kernel_size=1, bias=True)
+        temp.bias.data.fill_(bias)
+        offset.append(temp)
+
+        # wh
+        num_output = heads['wh']["num_output"]
+        bias = heads['wh'].get('bias', 0.0)
+        wh.append(nn.Conv2d(in_channels, head_conv_channel, kernel_size=3, padding=1, bias=True))
+        wh.append(nn.ReLU(inplace=True))
+        temp = nn.Conv2d(head_conv_channel, num_output, kernel_size=1, bias=True)
+        temp.bias.data.fill_(bias)
+        wh.append(temp)
+
+        self._heatmap = nn.Sequential(*heatmap)
+        self._offset = nn.Sequential(*offset)
+        self._wh = nn.Sequential(*wh)
 
     def forward(self,  x):
         feature = self._base_network(x)
-        heatmap, offset, wh = [head(feature) for head in self._heads]
-        heatmap = F.sigmoid(heatmap)
+
+        heatmap = self._heatmap(feature)
+        offset = self._offset(feature)
+        wh = self._wh(feature)
+
+        heatmap = torch.sigmoid(heatmap)
         return heatmap, offset, wh
 
 
 if __name__ == "__main__":
-    input_size = (768, 1280)
+    input_size = (512, 512)
+    device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     '''
@@ -50,21 +80,23 @@ if __name__ == "__main__":
     destabilizing loss value in the first iteration of training
     '''
     net = CenterNet(base=18,
+                    input_frame_number=2,
                     heads=OrderedDict([
                         ('heatmap', {'num_output': 5, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
                         ('wh', {'num_output': 2})
                     ]),
-                    head_conv_channel=256,
+                    head_conv_channel=64,
                     pretrained=False)
-
-    heatmap, offset, wh = net(torch.rand(1, 3, input_size[0],input_size[1]))
+    net.to(device)
+    heatmap, offset, wh = net(torch.rand(1, 6, input_size[0],input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
     print(f"heatmap prediction shape : {heatmap.shape}")
     print(f"offset prediction shape : {offset.shape}")
     print(f"width height prediction shape : {wh.shape}")
     '''
-    heatmap prediction shape : (1, 3, 128, 128)
-    offset prediction shape : (1, 2, 128, 128)
-    width height prediction shape : (1, 2, 128, 128)
+    < input size(height, width) : (512, 512) >
+    heatmap prediction shape : torch.Size([1, 5, 128, 128])
+    offset prediction shape : torch.Size([1, 2, 128, 128])
+    width height prediction shape : torch.Size([1, 2, 128, 128])
     '''

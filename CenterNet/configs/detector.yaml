@@ -1,5 +1,5 @@
 Dataset:
-  train: /home/wildfire/DB
+  train: valid
   valid: valid
   test: Dataset/test
   test_weight_path: weights
@@ -23,13 +23,12 @@ Dataset:
 model:
   training: True
   load_name: 608_608_ADAM_PCENTER_RES34 # training = False,
-  save_period: 1
+  save_period: 10
   load_period: 30
   input_size: [608, 608] # height, width
   input_frame_number: 1
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
   pretrained_base: True
-  pretrained_path: modelparam
 
 hyperparameters:
 
@@ -39,10 +38,10 @@ hyperparameters:
 
   # 학습 관련
   epoch: 30
-  batch_size: 32
-  batch_log: 100
+  batch_size: 8
+  batch_log: 10
   subdivision: 1
-  data_augmentation: True
+  data_augmentation: False
   num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.
   optimizer: ADAM # ADAM, RMSPROP
   lambda_off: 1

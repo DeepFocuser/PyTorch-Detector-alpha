@@ -73,9 +73,9 @@ class TargetGenerator(nn.Module):
     def forward(self, gt_boxes, gt_ids, output_width, output_height, device):
 
         if isinstance(gt_boxes, torch.Tensor):
-            gt_boxes = gt_boxes.cpu().numpy()
+            gt_boxes = gt_boxes.detach().cpu().numpy()
         if isinstance(gt_ids, torch.Tensor):
-            gt_ids = gt_ids.cpu().numpy()
+            gt_ids = gt_ids.detach().cpu().numpy()
 
         batch_size = gt_boxes.shape[0]
         heatmap = np.zeros((batch_size, self._num_classes, output_height, output_width),
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     targetgenerator = TargetGenerator(num_classes=num_classes)
 
     # batch 형태로 만들기
-    label = np.expand_dims(label, axis=0)
+    label = label[None,:, :]
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
     heatmap_target, offset_target, wh_target, mask_target = targetgenerator(gt_boxes, gt_ids,

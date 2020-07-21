@@ -140,7 +140,7 @@ def run(input_frame_number=2,
                                 gt_boxes=gt_boxes * scale_factor,
                                 gt_labels=gt_ids)
 
-        heatmap = np.multiply(heatmap_pred.cpu().numpy()[0], 255.0)  # 0 ~ 255 범위로 바꾸기
+        heatmap = np.multiply(heatmap_pred.detach().numpy()[0], 255.0)  # 0 ~ 255 범위로 바꾸기
         heatmap = np.amax(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
         heatmap = np.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
         heatmap = np.repeat(heatmap, 3, axis=-1)
@@ -149,7 +149,7 @@ def run(input_frame_number=2,
         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
         # heatmap, image add하기
-        bbox = box_resize(bboxes.cpu().numpy()[0], (netwidth, netheight), (width, height))
+        bbox = box_resize(bboxes.detach().numpy()[0], (netwidth, netheight), (width, height))
         ground_truth = plot_bbox(origin_image[0], origin_box[0][:, :4], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
                                  reverse_rgb=True,
                                  class_names=test_dataset.classes, absolute_coordinates=True,

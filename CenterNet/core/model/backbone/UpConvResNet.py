@@ -16,13 +16,14 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 class UpConvResNet(nn.Module):
 
     def __init__(self, base=18,
+                 input_frame_number = 2,
                  deconv_channels=(256, 128, 64),
                  deconv_kernels=(4, 4, 4),
                  pretrained=True):
 
         super(UpConvResNet, self).__init__()
-        self._resnet = get_resnet(base, pretrained=pretrained)
-        _, in_channels , _, _ = self._resnet(torch.rand(1, 3, 512, 512)).shape
+        self._resnet = get_resnet(base, pretrained=pretrained, input_frame_number=input_frame_number)
+        _, in_channels , _, _ = self._resnet(torch.rand(1, input_frame_number*3, 512, 512)).shape
 
         upconv = []
         for out_channels, kernel in zip(deconv_channels, deconv_kernels):
@@ -73,8 +74,9 @@ class UpConvResNet(nn.Module):
         return x
 
 
-def get_upconv_resnet(base=18, pretrained=False):
+def get_upconv_resnet(base=18, pretrained=False, input_frame_number=2):
     net = UpConvResNet(base=base,
+                       input_frame_number=input_frame_number,
                        deconv_channels=(256, 128, 64),
                        deconv_kernels=(4, 4, 4),
                        pretrained=pretrained)
@@ -83,9 +85,11 @@ def get_upconv_resnet(base=18, pretrained=False):
 
 if __name__ == "__main__":
     input_size = (512, 512)
+    device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    net = get_upconv_resnet(base=50, pretrained=False)
-    output = net(torch.rand(1, 3, input_size[0],input_size[1]))
+    net = get_upconv_resnet(base=50, pretrained=False, input_frame_number=2)
+    net.to(device)
+    output = net(torch.rand(1, 6, input_size[0],input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
     print(f"< output shape : {output.shape} >")
     '''

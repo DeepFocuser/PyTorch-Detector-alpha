@@ -38,7 +38,6 @@ input_size = parser["input_size"]
 input_frame_number = parser['input_frame_number']
 base = parser["ResNetbase"]
 pretrained_base = parser["pretrained_base"]
-pretrained_path = parser["pretrained_path"]
 
 # hyperparameters
 parser = stream['hyperparameters']
@@ -145,7 +144,6 @@ if __name__ == "__main__":
                   GPU_COUNT=GPU_COUNT,
                   base=base,
                   pretrained_base=pretrained_base,
-                  pretrained_path=pretrained_path,
 
                   valid_size=valid_size,
                   eval_period=eval_period,

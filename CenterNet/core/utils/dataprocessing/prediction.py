@@ -103,14 +103,12 @@ class Prediction(Module):
         '''
         keep = self._heatmap_nms(heatmap) == heatmap
         heatmap = torch.mul(keep, heatmap)
-        _, _, height, width = heatmap.shape
+        batch, channel, height, width = heatmap.shape
 
         # 상위 self._topk개만 뽑아내기
-        heatmap_resize=heatmap.reshape((0, -1))
-        indices = heatmap_resize.argsort(dim=-1, descending=True)  #(batch, channel * height * width) / int64
-        indices = indices[:,:self._topk]
+        heatmap_resize=heatmap.reshape((batch, -1))
+        scores, indices = heatmap_resize.topk(k=self._topk, dim=-1, largest=True, sorted=True)  #(batch, channel * height * width) / int64
 
-        scores = heatmap_resize.topk(k=self._topk, dim=-1, largest=True, sorted=True)  #(batch, channel * height * width) / int64
         scores = scores[:,:,None]
         ids = torch.floor_divide(indices, (height * width)) # 몫 만 구하기
         ids = ids.float()  # c++에서 float으로 받아오기 때문에!!! 형 변환 필요
@@ -123,8 +121,8 @@ class Prediction(Module):
         offset, wh에 해당 
         '''
         offset = offset.permute(0, 2, 3, 1).reshape(
-            (0, -1, 2))  # (batch, x, y, channel) -> (batch, height*width, 2)
-        wh = wh.permute(0, 2, 3, 1).reshape((0, -1, 2))  # (batch, width, height, channel) -> (batch, height*width, 2)
+            (batch, -1, 2))  # (batch, x, y, channel) -> (batch, height*width, 2)
+        wh = wh.permute(0, 2, 3, 1).reshape((batch, -1, 2))  # (batch, width, height, channel) -> (batch, height*width, 2)
         topk_indices = torch.fmod(indices, (height * width))  # 클래스별 index
 
         # 2차원 복구
@@ -202,13 +200,11 @@ if __name__ == "__main__":
                         ('wh', {'num_output': 2})
                     ]),
                     head_conv_channel=64,
-                    pretrained=False,
-                    root=os.path.join(root, 'models'),
-                    use_dcnv2=False)
+                    pretrained=False)
 
 
     prediction = Prediction(batch_size=8, topk=100, scale=scale_factor)
-    heatmap, offset, wh = net(torch.rand(2, 3, input_size[0], input_size[1]))
+    heatmap, offset, wh = net(torch.rand(1, 3, input_size[0], input_size[1]))
     ids, scores, bboxes = prediction(heatmap, offset, wh)
 
     print(f"< input size(height, width) : {input_size} >")
@@ -217,7 +213,7 @@ if __name__ == "__main__":
     print(f"topk box predictions shape : {bboxes.shape}")
     '''
     < input size(height, width) : (512, 512) >
-    topk class id shape : (2, 100, 1)
-    topk class scores shape : (2, 100, 1)
-    topk box predictions shape : (2, 100, 4)
+    topk class id shape : torch.Size([1, 100, 1])
+    topk class scores shape : torch.Size([1, 100, 1])
+    topk box predictions shape : torch.Size([1, 100, 4])
     '''
