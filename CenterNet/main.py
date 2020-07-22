@@ -5,8 +5,7 @@ import yaml
 import test
 import train
 
-# nms 구현하기
-
+# nms 구현하면 끝
 stream = yaml.load(open("configs/detector.yaml", "rt", encoding='UTF8'), Loader=yaml.SafeLoader)
 
 # dataset

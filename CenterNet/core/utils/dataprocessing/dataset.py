@@ -67,7 +67,7 @@ class DetectionDataset(Dataset):
         images = []
         image_sequence_path, label_path = self._items[idx]
         for image_path in image_sequence_path:
-            image = cv2.imread(image_path, flags=cv2.INTER_LINEAR)
+            image = cv2.imread(image_path, flags=-1)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             images.append(image)
         images = np.concatenate(images, axis=-1)
