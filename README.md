@@ -1,5 +1,5 @@
 >## ***One Stage Detector***
-* [***Center Detector***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterNet)
+* [***CenterNet***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterNet)
 
 >## ***Development environment***
 * OS : ubuntu linux 16.04 LTS
