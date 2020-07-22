@@ -1,14 +1,14 @@
 Dataset:
   train: valid
   valid: valid
-  test: Dataset/test
+  test: valid
   test_weight_path: weights
 
   # Test
   save_flag: True
   save_path: result
   show_flag: False
-  topk: 10
+  topk: 7
   except_class_thresh: 0.01
   iou_thresh: 0.1
 
@@ -21,14 +21,14 @@ Dataset:
   test_html_auto_open: False
 
 model:
-  training: True
-  load_name: 608_608_ADAM_PCENTER_RES34 # training = False,
+  training: False
+  load_name: 608_608_ADAM_PCENTER_RES18 # training = False,
   save_period: 1
-  load_period: 1
+  load_period: 10
   input_size: [608, 608] # height, width
-  input_frame_number: 2
+  input_frame_number: 1
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
-  pretrained_base: False
+  pretrained_base: True
 
 hyperparameters:
 
@@ -38,7 +38,7 @@ hyperparameters:
 
   # 학습 관련
   epoch: 10
-  batch_size: 2
+  batch_size: 8
   batch_log: 10
   subdivision: 1
   data_augmentation: False
@@ -53,7 +53,7 @@ hyperparameters:
 context:
   using_cuda: True
 validation:
-  valid_size: 2
+  valid_size: 8
   eval_period: 1
   tensorboard: True
   valid_graph_path: valid_Graph

@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 
@@ -7,6 +8,10 @@ import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
 
+logfilepath = ""
+if os.path.isfile(logfilepath):
+    os.remove(logfilepath)
+logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 # test시 nms 통과후 적용
 def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
@@ -24,25 +29,27 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
         if not os.path.exists(image_save_path):
             os.makedirs(image_save_path)
 
+    if isinstance(img, torch.Tensor):
+
+        img = img.type(torch.uint8)
+        img = img.detach().cpu().numpy().copy()
+
     img = img.astype(np.uint8)
 
     if len(bboxes) < 1:
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
         if image_save:
             cv2.imwrite(os.path.join(image_save_path, image_name + ".jpg"), img)
         if image_show:
             cv2.imshow(image_name, img)
             cv2.waitKey(0)
+        return img
     else:
-        if isinstance(img, torch.Tensor):
-            img = img.detach().cpu().numpy()
         if isinstance(bboxes, torch.Tensor):
-            bboxes = bboxes.detach().cpu().numpy()
+            bboxes = bboxes.detach().cpu().numpy().copy()
         if isinstance(labels, torch.Tensor):
-            labels = labels.detach().cpu().numpy()
+            labels = labels.detach().cpu().numpy().copy()
         if isinstance(scores, torch.Tensor):
-            scores = scores.detach().cpu().numpy()
+            scores = scores.detach().cpu().numpy().copy()
 
         if reverse_rgb:
             img[:, :, (0, 1, 2)] = img[:, :, (2, 1, 0)]
@@ -72,11 +79,12 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
                     colors[cls_id] = plt.get_cmap('hsv')(cls_id / len(class_names))
                 else:
                     colors[cls_id] = (random.random(), random.random(), random.random())
-            denorm_color = [x * 255 for x in colors[cls_id]]
 
+            denorm_color = [x * 255 for x in colors[cls_id]]
             bbox[np.isinf(bbox)] = 0
             bbox[bbox < 0] = 0
             xmin, ymin, xmax, ymax = [int(np.rint(x)) for x in bbox]
+
             try:
                 '''
                 colors[cls_id] -> 기본적으로 list, tuple 자료형에 동작함
@@ -86,7 +94,7 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
                 '''
                 cv2.rectangle(img, (xmin, ymin), (xmax, ymax), denorm_color, thickness=3)
             except Exception as E:
-                print(E)
+                logging.info(E)
 
             if class_names is not None and cls_id < len(class_names):
                 class_name = class_names[cls_id]

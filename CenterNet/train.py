@@ -233,6 +233,15 @@ def run(mean=[0.485, 0.456, 0.406],
                             except_class_thresh=except_class_thresh, nms_thresh=nms_thresh)
     precision_recall = Voc_2007_AP(iou_thresh=iou_thresh, class_names=name_classes)
 
+    # torch split이 numpy, mxnet split과 달라서 아래와 같은 작업을 하는 것
+    if batch_size % subdivision == 0:
+        chunk = int(batch_size) // int(subdivision)
+    else:
+        logging.info(f"batch_size / subdivision 이 나누어 떨어지지 않습니다.")
+        logging.info(f"subdivision 을 다시 설정하고 학습 진행하세요.")
+        exit(0)
+
+
     start_time = time.time()
     for i in tqdm(range(start_epoch + 1, epoch + 1, 1), initial=start_epoch + 1, total=epoch):
 
@@ -261,11 +270,11 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_target = wh_target.to(context)
             mask_target = mask_target.to(context)
 
-            image_split = torch.split(image, subdivision, dim=0)
-            heatmap_target_split = torch.split(heatmap_target, subdivision, dim=0)
-            offset_target_split = torch.split(offset_target, subdivision, dim=0)
-            wh_target_split = torch.split(wh_target, subdivision, dim=0)
-            mask_target_split = torch.split(mask_target, subdivision, dim=0)
+            image_split = torch.split(image, chunk, dim=0)
+            heatmap_target_split = torch.split(heatmap_target, chunk, dim=0)
+            offset_target_split = torch.split(offset_target, chunk, dim=0)
+            wh_target_split = torch.split(wh_target, chunk, dim=0)
+            mask_target_split = torch.split(mask_target, chunk, dim=0)
 
             heatmap_losses = []
             offset_losses = []
@@ -338,8 +347,11 @@ def run(mean=[0.485, 0.456, 0.406],
 
                 # torch.jit.trace() 보다는 control-flow 연산 적용이 가능한 torch.jit.script() 을 사용하자
                 # torch.jit.script
-                script = torch.jit.script(prepostnet)
+                script = torch.jit.script(module)
                 script.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
+
+                script = torch.jit.script(prepostnet)
+                script.save(os.path.join(weight_path, f'{model}-prepost-{i:04d}.jit'))
 
                 # # torch.jit.trace - 안 써짐
                 # 오류 : Expected object of device type cuda but got device type cpu for argument #2 'other' in call to _th_fmod
@@ -377,9 +389,9 @@ def run(mean=[0.485, 0.456, 0.406],
                                         gt_boxes=gt_box * scale_factor,
                                         gt_labels=gt_id)
 
-                heatmap_loss = torch.div(heatmapfocalloss(heatmap_pred, heatmap_target), subdivision)
-                offset_loss = torch.div(normedl1loss(offset_pred, offset_target, mask_target) * lambda_off, subdivision)
-                wh_loss = torch.div(normedl1loss(wh_pred, wh_target, mask_target) * lambda_size, subdivision)
+                heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
+                offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
+                wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
 
                 heatmap_loss_sum += heatmap_loss.item()
                 offset_loss_sum += offset_loss.item()
@@ -429,28 +441,22 @@ def run(mean=[0.485, 0.456, 0.406],
                 heatmap_pred, offset_pred, wh_pred = net(image)
                 ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
 
-                # numpy로 바꾸기
-                image = image.detach().cpu().numpy()
-                gt_ids = gt_ids.detach().cpu().numpy()
-                gt_boxes = gt_boxes.detach().cpu().numpy()
-                heatmap_pred = heatmap_pred.detach().cpu().numpy()
-                ids = ids.detach().cpu().numpy()
-                scores = scores.detach().cpu().numpy()
-                bboxes = bboxes.detach().cpu().numpy()
-
                 for img, gt_id, gt_box, heatmap, id, score, bbox in zip(image, gt_ids, gt_boxes, heatmap_pred, ids,
                                                                         scores, bboxes):
-                    split_img = np.split(img, input_frame_number, axis=0)
+
+                    split_img = torch.split(img, 3, dim=0) # numpy split과 다르네...
                     hconcat_image_list = []
 
                     for j, ig in enumerate(split_img):
 
-                        ig = ig.transpose((1, 2, 0)) * np.array(std) + np.array(mean)
-                        ig = (ig * 255).clip(0, 255)
-                        ig = ig.astype(np.uint8)
+                        ig = ig.permute((1, 2, 0)) * torch.tensor(std, device=ig.device) + torch.tensor(mean, device=ig.device)
+                        ig = (ig * 255).clamp(0, 255)
+                        ig = ig.to(torch.uint8)
+                        ig = ig.detach().cpu().numpy().copy()
 
                         if j == len(split_img) - 1:  # 마지막 이미지
                             # heatmap 그리기
+                            heatmap = heatmap.detach().cpu().numpy().copy()
                             heatmap = np.multiply(heatmap, 255.0)  # 0 ~ 255 범위로 바꾸기
                             heatmap = np.amax(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
                             heatmap = np.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
@@ -466,7 +472,7 @@ def run(mean=[0.485, 0.456, 0.406],
                                                      class_names=valid_dataset.classes,
                                                      absolute_coordinates=True,
                                                      colors=ground_truth_colors)
-                            # prediction box 그리기
+                            # # prediction box 그리기
                             prediction_box = plot_bbox(ground_truth, bbox, scores=score, labels=id,
                                                        thresh=plot_class_thresh,
                                                        reverse_rgb=False,

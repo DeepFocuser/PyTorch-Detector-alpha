@@ -80,6 +80,7 @@ def run(input_frame_number=2,
     try:
         test_dataloader, test_dataset = testdataloader(path=test_dataset_path,
                                                        input_size=(netheight, netwidth),
+                                                       input_frame_number= input_frame_number,
                                                        num_workers=num_workers,
                                                        mean=mean, std=std, scale_factor=scale_factor)
     except Exception:
@@ -87,7 +88,7 @@ def run(input_frame_number=2,
         exit(0)
 
     weight_path = os.path.join(test_weight_path, load_name)
-    trace_path = os.path.join(weight_path, f'{load_name}-{load_period:04d}.params')
+    trace_path = os.path.join(weight_path, f'{load_name}-{load_period:04d}.jit')
 
     test_update_number_per_epoch = len(test_dataloader)
     if test_update_number_per_epoch < 1:
@@ -96,8 +97,8 @@ def run(input_frame_number=2,
 
     num_classes = test_dataset.num_class  # 클래스 수
     name_classes = test_dataset.classes
-
     logging.info("jit model test")
+
     try:
         net = torch.jit.load(trace_path, map_location=device)
     except Exception:
@@ -116,7 +117,7 @@ def run(input_frame_number=2,
 
     ground_truth_colors = {}
     for i in range(num_classes):
-        ground_truth_colors[i] = (0, 0, 1)
+        ground_truth_colors[i] = (0, 1, 0)
 
     heatmap_loss_sum = 0
     offset_loss_sum = 0
@@ -140,7 +141,7 @@ def run(input_frame_number=2,
                                 gt_boxes=gt_boxes * scale_factor,
                                 gt_labels=gt_ids)
 
-        heatmap = np.multiply(heatmap_pred.detach().numpy()[0], 255.0)  # 0 ~ 255 범위로 바꾸기
+        heatmap = np.multiply(heatmap_pred[0].detach().cpu().numpy().copy(), 255.0)  # 0 ~ 255 범위로 바꾸기
         heatmap = np.amax(heatmap, axis=0, keepdims=True)  # channel 축으로 가장 큰것 뽑기
         heatmap = np.transpose(heatmap, axes=(1, 2, 0))  # (height, width, channel=1)
         heatmap = np.repeat(heatmap, 3, axis=-1)
@@ -149,7 +150,7 @@ def run(input_frame_number=2,
         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
         # heatmap, image add하기
-        bbox = box_resize(bboxes.detach().numpy()[0], (netwidth, netheight), (width, height))
+        bbox = box_resize(bboxes[0].detach().cpu().numpy().copy(), (netwidth, netheight), (width, height))
         ground_truth = plot_bbox(origin_image[0], origin_box[0][:, :4], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
                                  reverse_rgb=True,
                                  class_names=test_dataset.classes, absolute_coordinates=True,

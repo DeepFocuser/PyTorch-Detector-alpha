@@ -5,6 +5,7 @@ import os
 
 import cv2
 import numpy as np
+import torch
 from torch.utils.data import Dataset
 
 logfilepath = ""  # 따로 지정하지 않으면 terminal에 뜸
@@ -54,7 +55,10 @@ class DetectionDataset(Dataset):
                         image_path = image_path_list[i:i + self._sequence_number]
                         label_path = image_path[-1].replace("images", "labels").replace(".jpg", ".json")
                         self._items.append((image_path, label_path))
-                        self._itemname.append(image_path[-1])
+
+                        base_image = os.path.basename(image_path[-1])
+                        name = os.path.splitext(base_image)[0]
+                        self._itemname.append(name)
         else:
             logging.info("The dataset does not exist")
 
@@ -75,7 +79,7 @@ class DetectionDataset(Dataset):
         if self._transform:
             result = self._transform(images, label, self._itemname[idx])
             if len(result) == 3:
-                return result[0], result[1], result[2], origin_images, origin_label
+                return result[0], result[1], result[2], torch.as_tensor(origin_images), torch.as_tensor(origin_label)
             else:
                 return result[0], result[1], result[2], result[3], result[4], result[5], result[
                     6]
