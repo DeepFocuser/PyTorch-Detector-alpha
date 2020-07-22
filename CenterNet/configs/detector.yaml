@@ -21,7 +21,7 @@ Dataset:
   test_html_auto_open: False
 
 model:
-  training: False
+  training: True
   load_name: 608_608_ADAM_PCENTER_RES18 # training = False,
   save_period: 1
   load_period: 10

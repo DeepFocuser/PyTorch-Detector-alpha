@@ -120,6 +120,8 @@ if __name__ == "__main__":
             ml.log_param("nms_thresh", nms_thresh)
             ml.log_param("plot_class_thresh", plot_class_thresh)
 
+        torch.backends.cudnn.deterministic = False
+        torch.backends.cudnn.benchmark = True # 그래프가 변하는 경우 학습 속도 느려질수 있음.
         train.run(mean=image_mean,
                   std=image_std,
                   epoch=epoch,
@@ -162,6 +164,8 @@ if __name__ == "__main__":
         if using_mlflow:
             ml.end_run()
     else:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         test.run(input_frame_number=input_frame_number,
                  mean=image_mean,
                  std=image_std,
