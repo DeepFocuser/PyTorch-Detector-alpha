@@ -4,32 +4,6 @@ __all__ = ["image_random_color_distort", "random_flip", "np"]
 
 def image_random_color_distort(src, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
                                saturation_low=0.5, saturation_high=1.5, hue_delta=18):
-    """Randomly distort image color space.
-    Note that input image should in original range [0, 255].
-
-    Parameters
-    ----------
-    src : numpy.ndarray
-        Input image as HWC format.
-    brightness_delta : int
-        Maximum brightness delta. Defaults to 32.
-    contrast_low : float
-        Lowest contrast. Defaults to 0.5.
-    contrast_high : float
-        Highest contrast. Defaults to 1.5.
-    saturation_low : float
-        Lowest saturation. Defaults to 0.5.
-    saturation_high : float
-        Highest saturation. Defaults to 1.5.
-    hue_delta : int
-        Maximum hue delta. Defaults to 18.
-
-    Returns
-    -------
-    mxnet.nd.NDArray
-        Distorted image in HWC format.
-
-    """
 
     def brightness(src, delta, p=0.5):
         """Brightness distortion."""

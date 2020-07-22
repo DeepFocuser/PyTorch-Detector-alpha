@@ -13,7 +13,8 @@ class Prediction(nn.Module):
         self._nms_thresh = nms_thresh
         self._except_class_thresh = except_class_thresh
 
-    def _nms_center(self, ids, scores, bboxes, overlap_thresh=0.5):
+    def _nms_center(self, ids, scores, bboxes):
+        print(self._nms_thresh)
         return ids, scores, bboxes
 
     def forward(self, heatmap, offset, wh):
@@ -49,9 +50,6 @@ class Prediction(nn.Module):
         topk_ys = torch.floor_divide(topk_indices, width)  # y축 index
         topk_xs = torch.fmod(topk_indices, width)  # x축 index
 
-        # https://mxnet.apache.org/api/python/docs/api/ndarray/ndarray.html?highlight=gather_nd#mxnet.ndarray.gather_nd
-        # offset 에서 offset_xs를 index로 보고 뽑기 - gather_nd를 알고 나니 상당히 유용한 듯.
-        # x index가 0번에 있고, y index가 1번에 있으므로!!!
         batch_indices = torch.arange(self._batch_size, device=ids.device)
         batch_indices = batch_indices[:offset.shape[0], None]
         batch_indices = batch_indices.repeat_interleave(self._topk, dim=-1) # (batch, self._topk)
@@ -89,7 +87,7 @@ class Prediction(nn.Module):
 
         if self._nms:
             if self._nms_thresh > 0 and self._nms_thresh < 1:
-                ids, scores, bboxes = self._nms_center(ids, scores, bboxes * self._scale, overlap_thresh=self._nms_thresh)
+                ids, scores, bboxes = self._nms_center(ids, scores, bboxes * self._scale)
             return ids, scores, bboxes
         else:
             return ids, scores, bboxes * self._scale
