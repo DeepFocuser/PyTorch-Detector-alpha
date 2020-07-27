@@ -404,7 +404,7 @@ if __name__ == "__main__":
                     ]),
                     head_conv_channel=64, pretrained=False)
 
-    prediction = Prediction(topk=100, scale=4)
+    prediction = Prediction(unique_ids=name_classes, topk=100, scale=4)
     precision_recall_2007 = Voc_2007_AP(iou_thresh=0.5, class_names=name_classes)
     precision_recall_2010 = Voc_2010_AP(iou_thresh=0.5, class_names=name_classes)
 

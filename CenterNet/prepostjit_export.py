@@ -3,6 +3,7 @@ import os
 
 import torch
 
+from core import testdataloader
 from core import PrePostNet
 from core import Prediction
 
@@ -37,8 +38,10 @@ def export(input_frame_number = 2,
     else:
         raise FileExistsError
 
+    _, test_dataset = testdataloader()
+
     # prepost
-    auxnet = Prediction(topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
+    auxnet = Prediction(unique_ids=test_dataset.CLASSES, topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
                         nms_thresh=nms_thresh)
     prepostnet = PrePostNet(net=net, auxnet=auxnet, input_frame_number=input_frame_number)  # 새로운 객체가 생성
 

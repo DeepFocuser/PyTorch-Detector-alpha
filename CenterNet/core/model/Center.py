@@ -14,7 +14,7 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 class CenterNet(nn.Module):
 
-    def __init__(self, base=18, input_frame_number=2, heads=OrderedDict(), head_conv_channel=64, pretrained=True):
+    def __init__(self, base=18, input_frame_number=1, heads=OrderedDict(), head_conv_channel=64, pretrained=True):
         super(CenterNet, self).__init__()
 
         self._base_network = get_upconv_resnet(base=base, pretrained=pretrained, input_frame_number=input_frame_number)

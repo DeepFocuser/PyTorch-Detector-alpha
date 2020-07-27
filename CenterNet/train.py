@@ -229,7 +229,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
     heatmapfocalloss = HeatmapFocalLoss(from_sigmoid=True, alpha=2, beta=4)
     normedl1loss = NormedL1Loss()
-    prediction = Prediction(batch_size=valid_size, topk=topk, scale=scale_factor, nms=nms,
+    prediction = Prediction(batch_size=valid_size, unique_ids=name_classes, topk=topk, scale=scale_factor, nms=nms,
                             except_class_thresh=except_class_thresh, nms_thresh=nms_thresh)
     precision_recall = Voc_2007_AP(iou_thresh=iou_thresh, class_names=name_classes)
 
@@ -336,7 +336,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 os.makedirs(weight_path)
 
             module = net.module if isinstance(device, (list, tuple)) else net
-            auxnet = Prediction(topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
+            auxnet = Prediction(unique_ids=name_classes, topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
                                 nms_thresh=nms_thresh)
             prepostnet = PrePostNet(net=module, auxnet=auxnet, input_frame_number=input_frame_number)  # 새로운 객체가 생성
 
