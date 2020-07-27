@@ -13,15 +13,67 @@ class Prediction(nn.Module):
         self._nms_thresh = nms_thresh
         self._except_class_thresh = except_class_thresh
 
-    def _nms_center(self, ids, scores, bboxes):
+    def _non_maximum_suppression(self, ids, scores, bboxes):
+
+        # https://gist.github.com/mkocabas/a2f565b27331af0da740c11c78699185
         '''
-        non maximum suppression 후 걸러진 것들은 -1로 채워짐
+        1. 내림차순 정렬 하기
+        2. non maximum suppression 후 빈 박스들은  -1로 채우기
 
         :param ids: (object number, 1)
         :param scores: (object number, 1)
         :param bboxes: (object number, 4)
         :return: ids, scores, bboxes
         '''
+
+        if ids.shape[0] == 1:
+            return ids, scores, bboxes
+
+        # 내림차순 정렬
+        indices = scores.argsort(dim=0, descending=True)[:,0] # 내림차순 정렬
+        ids = ids[indices]
+        scores = scores[indices]
+        xmin = bboxes[:,0:1][indices]
+        ymin = bboxes[:,1:2][indices]
+        xmax = bboxes[:,2:3][indices]
+        ymax = bboxes[:,3:4][indices]
+
+        # nms 알고리즘
+        x1 = xmin[:, 0]
+        y1 = ymin[:, 0]
+        x2 = xmax[:, 0]
+        y2 = ymax[:, 0]
+        mask = torch.ones_like(x1)
+        i = 0
+        while i < len(ids)-1:
+            xx1 = torch.max(x1[i], x1[i+1:])
+            yy1 = torch.max(y1[i], y1[i+1:])
+            xx2 = torch.max(x2[i], x2[i+1:])
+            yy2 = torch.max(y2[i], y2[i+1:])
+            w = xx2 - xx1 + 1
+            h = yy2 - yy1 + 1
+            overlap = (w * h) / (x1[i]+x1[i+1:]-(w * h))
+            mask[i+1:] = torch.where(overlap > self._nms_thresh, torch.ones_like(overlap), torch.ones_like(overlap)*-1)
+            i+=1
+
+        # nms 한 것들 mask 씌우기
+        mask = mask[:,None]
+        ids = ids*mask
+        scores = scores * mask
+        xmin = xmin * mask
+        ymin = ymin * mask
+        xmax = xmax * mask
+        ymax = ymax * mask
+
+        # nms 한 것들 mask 씌우기
+        ids = torch.where(ids<0, ids*-1, ids)
+        scores = torch.where(scores<0, scores*-1, scores)
+        xmin = torch.where(xmin<0, xmin*-1, xmin)
+        ymin = torch.where(ymin<0, ymin*-1, ymin)
+        xmax = torch.where(xmax<0, xmax*-1, xmax)
+        ymax = torch.where(ymax<0, ymax*-1, ymax)
+        bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
+
         return ids, scores, bboxes
 
     def forward(self, heatmap, offset, wh):
@@ -107,9 +159,12 @@ class Prediction(nn.Module):
                     id_list = []
                     score_list = []
                     bbox_list = []
+
                     for uid in unique_id:
                         bbox = torch.cat([x_min[id==uid, None],y_min[id==uid, None], x_max[id==uid, None], y_max[id==uid, None]], dim=-1)
-                        id_part, score_part, bbox_part = self._nms_center(id[id==uid, None], score[id==uid, None], bbox)
+
+                        id_part, score_part, bbox_part = self._non_maximum_suppression(id[id==uid, None], score[id==uid, None], bbox)
+
                         id_list.append(id_part)
                         score_list.append(score_part)
                         bbox_list.append(bbox_part)
@@ -160,8 +215,8 @@ if __name__ == "__main__":
                     pretrained=False)
 
 
-    prediction = Prediction(batch_size=1, topk=10, scale=scale_factor, nms=True, except_class_thresh=0.01, nms_thresh=0.5)
-    heatmap, offset, wh = net(torch.rand(1, 6, input_size[0], input_size[1]))
+    prediction = Prediction(batch_size=10, topk=7, scale=scale_factor, nms=True, except_class_thresh=0.01, nms_thresh=0.5)
+    heatmap, offset, wh = net(torch.rand(5, 6, input_size[0], input_size[1]))
     ids, scores, bboxes = prediction(heatmap, offset, wh)
 
     print(f"< input size(height, width) : {input_size} >")
