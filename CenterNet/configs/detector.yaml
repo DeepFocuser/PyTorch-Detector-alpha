@@ -9,7 +9,7 @@ Dataset:
   save_path: result
   show_flag: False
   topk: 7
-  except_class_thresh: 0.01
+  except_class_thresh: 0.1
   iou_thresh: 0.1
 
   # nms 관련
@@ -24,7 +24,7 @@ model:
   training: True
   load_name: 608_608_ADAM_PCENTER_RES18 # training = False,
   save_period: 1
-  load_period: 100
+  load_period: 10
   input_size: [608, 608] # height, width
   input_frame_number: 1
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152

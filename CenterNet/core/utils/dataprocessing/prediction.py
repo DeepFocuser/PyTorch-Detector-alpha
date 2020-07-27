@@ -47,14 +47,18 @@ class Prediction(nn.Module):
         mask = torch.ones_like(x1)
         i = 0
         while i < len(ids)-1:
+
             xx1 = torch.max(x1[i], x1[i+1:])
             yy1 = torch.max(y1[i], y1[i+1:])
-            xx2 = torch.max(x2[i], x2[i+1:])
-            yy2 = torch.max(y2[i], y2[i+1:])
+            xx2 = torch.min(x2[i], x2[i+1:])
+            yy2 = torch.min(y2[i], y2[i+1:])
             w = xx2 - xx1 + 1
             h = yy2 - yy1 + 1
-            overlap = (w * h) / (x1[i]+x1[i+1:]-(w * h))
-            mask[i+1:] = torch.where(overlap > self._nms_thresh, torch.zeros_like(overlap), torch.ones_like(overlap))
+
+            box1_area = (x2[i] - x1[i] + 1) * (y2[i] - y1[i] + 1)
+            boxn_area = (x2[i+1:] - x1[i+1:] + 1) * (y2[i+1:] - y1[i+1:] + 1)
+            overlap = (w * h) / (box1_area + boxn_area - (w * h))
+            mask[i+1:] = torch.where(overlap > self._nms_thresh, torch.ones_like(overlap)*-1, torch.ones_like(overlap))
             i+=1
 
         # nms 한 것들 mask 씌우기
@@ -67,12 +71,12 @@ class Prediction(nn.Module):
         ymax = ymax * mask
 
         # nms 한 것들 mask 씌우기
-        ids = torch.where(ids<=0, torch.ones_like(ids)*-1, ids) # 0 : nms / -1 : 배경 -> -1 로 표현
-        scores = torch.where(scores<=0, torch.ones_like(scores)*-1, scores)
-        xmin = torch.where(xmin<=0, torch.ones_like(xmin)*-1, xmin)
-        ymin = torch.where(ymin<=0, torch.ones_like(ymin)*-1, ymin)
-        xmax = torch.where(xmax<=0, torch.ones_like(xmax)*-1, xmax)
-        ymax = torch.where(ymax<=0, torch.ones_like(ymax)*-1, ymax)
+        ids = torch.where(ids<0, torch.ones_like(ids)*-1, ids) # 0 : nms / -1 : 배경 -> -1 로 표현
+        scores = torch.where(scores<0, torch.ones_like(scores)*-1, scores)
+        xmin = torch.where(xmin<0, torch.ones_like(xmin)*-1, xmin)
+        ymin = torch.where(ymin<0, torch.ones_like(ymin)*-1, ymin)
+        xmax = torch.where(xmax<0, torch.ones_like(xmax)*-1, xmax)
+        ymax = torch.where(ymax<0, torch.ones_like(ymax)*-1, ymax)
         bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
 
         return ids, scores, bboxes
@@ -143,6 +147,7 @@ class Prediction(nn.Module):
         ymin = torch.where(except_mask, bboxes[:, :, 1:2], torch.ones_like(bboxes[:, :, 1:2]) * -1)
         xmax = torch.where(except_mask, bboxes[:, :, 2:3], torch.ones_like(bboxes[:, :, 2:3]) * -1)
         ymax = torch.where(except_mask, bboxes[:, :, 3:4], torch.ones_like(bboxes[:, :, 3:4]) * -1)
+        bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
 
         if self._nms:
             if self._nms_thresh > 0 and self._nms_thresh < 1:
@@ -152,17 +157,19 @@ class Prediction(nn.Module):
                 bboxes_list = []
 
                 # batch 별로 나누기
-                for id, score, x_min, y_min, x_max, y_max in zip(ids, scores, xmin, ymin, xmax, ymax):
-
+                #for id, score, x_min, y_min, x_max, y_max in zip(ids, scores, xmin, ymin, xmax, ymax):
+                for id, score, box in zip(ids, scores, bboxes):
                     id_list = []
                     score_list = []
                     bbox_list = []
-
                     # id별로 나누기
                     for uid in self._unique_ids:
-                        bbox = torch.cat([x_min[id==uid, None],y_min[id==uid, None], x_max[id==uid, None], y_max[id==uid, None]], dim=-1)
-
-                        id_part, score_part, bbox_part = self._non_maximum_suppression(id[id==uid, None], score[id==uid, None], bbox)
+                        indices = id==uid
+                        bbox = torch.cat([box[:,0:1][indices, None], box[:,1:2][indices, None], box[:, 2:3][indices, None], box[:,3:4][indices, None]], dim=-1)
+                        if uid < 0: # 배경인 경우
+                            id_part, score_part, bbox_part = id[indices, None], score[indices, None], bbox
+                        else:
+                            id_part, score_part, bbox_part = self._non_maximum_suppression(id[indices, None], score[indices, None], bbox)
 
                         id_list.append(id_part)
                         score_list.append(score_part)
@@ -180,9 +187,9 @@ class Prediction(nn.Module):
                 ids = torch.stack(ids_list, dim=0)
                 scores = torch.stack(scores_list, dim=0)
                 bboxes = torch.stack(bboxes_list, dim=0)
+
             return ids, scores, bboxes * self._scale
         else:
-            bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
             return ids, scores, bboxes * self._scale
 
 # test
@@ -214,8 +221,8 @@ if __name__ == "__main__":
                     pretrained=False)
 
 
-    prediction = Prediction(batch_size=10, unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.01, nms_thresh=0.5)
-    heatmap, offset, wh = net(torch.rand(3, 6, input_size[0], input_size[1]))
+    prediction = Prediction(batch_size=10, unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.1, nms_thresh=0.5)
+    heatmap, offset, wh = net(torch.rand(2, 6, input_size[0], input_size[1]))
     ids, scores, bboxes = prediction(heatmap, offset, wh)
 
     print(f"< input size(height, width) : {input_size} >")
