@@ -55,10 +55,10 @@ class DetectionDataset(Dataset):
                         image_path = image_path_list[i:i + self._sequence_number]
                         label_path = image_path[-1].replace("images", "labels").replace(".jpg", ".json")
                         self._items.append((image_path, label_path))
-
-                        base_image = os.path.basename(image_path[-1])
-                        name = os.path.splitext(base_image)[0]
-                        self._itemname.append(name)
+                        # base_image = os.path.basename(image_path[-1])
+                        # name = os.path.splitext(base_image)[0]
+                        # self._itemname.append(name)
+                        self._itemname.append(image_path[-1])
         else:
             logging.info("The dataset does not exist")
 

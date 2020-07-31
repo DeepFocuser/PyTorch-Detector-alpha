@@ -32,8 +32,16 @@ def run(input_frame_number=2,
         lambda_off=1,
         lambda_size=0.1,
         num_workers=4,
+        npy_flag=True,
+        npy_save_path="npy_result",
         show_flag=True,
         save_flag=True,
+        video_flag=True,
+        video_size=[1080, 1920],
+        video_min=None,
+        video_max=None,
+        video_fps=15,
+        video_name="result",
         topk=100,
         iou_thresh=0.5,
         nms=False,
@@ -123,6 +131,17 @@ def run(input_frame_number=2,
     offset_loss_sum = 0
     wh_loss_sum = 0
 
+    if video_flag:
+        if not os.path.exists(test_save_path):
+            os.makedirs(test_save_path)
+        fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+        out = cv2.VideoWriter(os.path.join(test_save_path, f'{video_name}_{video_fps}fps.mp4'), fourcc, video_fps, video_size[::-1])
+
+        if isinstance(video_min, str):
+            video_min = 0 if video_min.upper() == "NONE" else video_min
+        if isinstance(video_max, str):
+            video_max = test_update_number_per_epoch if video_max.upper() == "NONE" else video_max
+
     for image, label, name, origin_image, origin_box in tqdm(test_dataloader):
         _, height, width, _ = origin_image.shape
         logging.info(f"real input size : {(height, width)}")
@@ -150,16 +169,72 @@ def run(input_frame_number=2,
         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
         # heatmap, image add하기
-        bbox = box_resize(bboxes[0].detach().cpu().numpy().copy(), (netwidth, netheight), (width, height))
-        ground_truth = plot_bbox(origin_image[0], origin_box[0][:, :4], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
-                                 reverse_rgb=True,
-                                 class_names=test_dataset.classes, absolute_coordinates=True,
-                                 colors=ground_truth_colors)
-        plot_bbox(ground_truth, bbox, scores=scores[0], labels=ids[0], thresh=plot_class_thresh,
-                  reverse_rgb=False,
-                  class_names=test_dataset.classes, absolute_coordinates=True,
-                  image_show=show_flag, image_save=save_flag, image_save_path=test_save_path, image_name=name[0],
-                  heatmap=heatmap)
+        bboxes = box_resize(bboxes[0].detach().cpu().numpy().copy(), (netwidth, netheight), (width, height))
+
+        # 출력
+        split_path = name[0].split("/")
+
+        if npy_flag:
+
+            npy_path = os.path.join(npy_save_path, split_path[-3], split_path[-2])
+            if not os.path.exists(npy_path):
+                os.makedirs(npy_path)
+
+            ids_npy = ids.asnumpy()[0]  # (22743, 1)
+            except_ids_index = np.where(ids_npy != -1)
+            scores_npy = scores.asnumpy()[0][except_ids_index]
+            scores_npy = np.expand_dims(scores_npy, axis=-1)
+
+            bboxes_npy = bboxes.asnumpy()
+            xmin, ymin, xmax, ymax = np.split(bboxes_npy, 4, axis=-1)
+
+            xmin = xmin[except_ids_index]
+            ymin = ymin[except_ids_index]
+            xmax = xmax[except_ids_index]
+            ymax = ymax[except_ids_index]
+            bboxes_npy = np.stack([xmin, ymin, xmax, ymax], axis=-1)
+
+            # 순서 scores, bboxes - 마지막 축으로 concat
+            scorebox = np.concatenate([scores_npy, bboxes_npy], axis=-1)
+            result_name = split_path[-1].replace(".jpg", ".npy")
+            np.save(os.path.join(npy_path, result_name), scorebox)
+
+        for pair_ig in origin_image:
+            split_ig = torch.split(pair_ig, 3, dim=-1)
+
+            hconcat_image_list = []
+            for j, ig in enumerate(split_ig):
+                if j == len(split_ig) - 1:  # 마지막 이미지
+                    ground_truth = plot_bbox(ig, origin_box[0][:, :4], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
+                                             reverse_rgb=True,
+                                             class_names=test_dataset.classes, absolute_coordinates=True,
+                                             colors=ground_truth_colors)
+                    prediction_box = plot_bbox(ground_truth, bboxes, scores=scores[0], labels=ids[0],
+                                               thresh=plot_class_thresh,
+                                               reverse_rgb=False,
+                                               class_names=test_dataset.classes, absolute_coordinates=True, heatmap=heatmap)
+                    hconcat_image_list.append(prediction_box)
+                else:
+                    ig = ig.type(torch.uint8)
+                    ig = ig.detach().cpu().numpy().copy()
+                    ig = cv2.cvtColor(ig, cv2.COLOR_RGB2BGR)
+                    hconcat_image_list.append(ig)
+
+            hconcat_images = np.concatenate(hconcat_image_list, axis=1)
+        if save_flag:
+            image_save_path = os.path.join(test_save_path, split_path[-3], split_path[-2])
+            if not os.path.exists(image_save_path):
+                os.makedirs(image_save_path)
+            cv2.imwrite(os.path.join(image_save_path, split_path[-1]), hconcat_images)
+        if show_flag:
+            logging.info(f"image name : {os.path.splitext(os.path.basename(name[0]))[0]}")
+            cv2.imshow("temp", hconcat_images)
+            cv2.waitKey(0)
+        if video_flag:
+            video_min = 0 if video_min < 0 else video_min
+            video_max = test_update_number_per_epoch if video_max > test_update_number_per_epoch else video_max
+            if i >= video_min and i <= video_max:
+                out.write(hconcat_images)
 
         heatmap_target, offset_target, wh_target, mask_target = targetgenerator(gt_boxes, gt_ids,
                                                                                 netwidth // scale_factor,
@@ -213,8 +288,16 @@ if __name__ == "__main__":
         lambda_off=1,
         lambda_size=0.1,
         num_workers=4,
+        npy_flag = True,
+        npy_save_path="npy_result",
         show_flag=True,
+        video_flag=True,
+        video_size = [1080, 1920],
         save_flag=True,
+        video_min = None,
+        video_max = None,
+        video_fps = 15,
+        video_name = "result",
         topk=100,
         iou_thresh=0.5,
         nms=False,

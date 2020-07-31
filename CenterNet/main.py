@@ -18,6 +18,15 @@ test_weight_path = parser['test_weight_path']
 test_save_path = parser['save_path']
 save_flag = parser['save_flag']
 show_flag = parser['show_flag']
+npy_flag = parser['npy_flag']
+npy_save_path = parser['npy_save_path']
+video_flag = parser['video_flag']
+video_size = parser['video_size']
+video_min = parser['video_min']
+video_max = parser['video_max']
+video_fps = parser['video_fps']
+video_name = parser['video_name']
+
 topk = parser['topk']
 iou_thresh = parser['iou_thresh']
 nms = parser['nms']
@@ -177,8 +186,16 @@ if __name__ == "__main__":
                  test_html_auto_open=test_html_auto_open,
                  lambda_off=lambda_off,
                  lambda_size=lambda_size,
+                 npy_flag = npy_flag,
+                 npy_save_path=npy_save_path,
                  show_flag=show_flag,
                  save_flag=save_flag,
+                 video_flag=video_flag,
+                 video_size=video_size,
+                 video_min = video_min,
+                 video_max = video_max,
+                 video_fps = video_fps,
+                 video_name = video_name,
                  # test dataset 그리기
                  topk=topk,
                  nms=nms,

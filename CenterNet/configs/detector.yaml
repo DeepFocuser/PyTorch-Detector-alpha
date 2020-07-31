@@ -8,6 +8,15 @@ Dataset:
   save_flag: True
   save_path: result
   show_flag: False
+  npy_flag: True
+  npy_save_path: npy_result
+  show_flag: False
+  video_flag: False
+  video_size: [1080, 1920] # height, width
+  video_min: None
+  video_max: None
+  video_fps: 15
+  video_name: video
   topk: 7
   except_class_thresh: 0.1
   iou_thresh: 0.1
