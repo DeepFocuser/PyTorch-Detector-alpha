@@ -180,13 +180,12 @@ def run(input_frame_number=2,
             if not os.path.exists(npy_path):
                 os.makedirs(npy_path)
 
-            ids_npy = ids.asnumpy()[0]  # (22743, 1)
+            ids_npy = ids.detach().cpu().numpy().copy()[0]  # (22743, 1)
             except_ids_index = np.where(ids_npy != -1)
-            scores_npy = scores.asnumpy()[0][except_ids_index]
+            scores_npy = scores.detach().cpu().numpy().copy()[0][except_ids_index]
             scores_npy = np.expand_dims(scores_npy, axis=-1)
 
-            bboxes_npy = bboxes.asnumpy()
-            xmin, ymin, xmax, ymax = np.split(bboxes_npy, 4, axis=-1)
+            xmin, ymin, xmax, ymax = np.split(bboxes, 4, axis=-1)
 
             xmin = xmin[except_ids_index]
             ymin = ymin[except_ids_index]
