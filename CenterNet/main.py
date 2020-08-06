@@ -21,7 +21,6 @@ show_flag = parser['show_flag']
 npy_flag = parser['npy_flag']
 npy_save_path = parser['npy_save_path']
 video_flag = parser['video_flag']
-video_size = parser['video_size']
 video_min = parser['video_min']
 video_max = parser['video_max']
 video_fps = parser['video_fps']
@@ -191,7 +190,6 @@ if __name__ == "__main__":
                  show_flag=show_flag,
                  save_flag=save_flag,
                  video_flag=video_flag,
-                 video_size=video_size,
                  video_min = video_min,
                  video_max = video_max,
                  video_fps = video_fps,

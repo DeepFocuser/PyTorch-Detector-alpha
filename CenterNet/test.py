@@ -37,7 +37,6 @@ def run(input_frame_number=2,
         show_flag=True,
         save_flag=True,
         video_flag=True,
-        video_size=[1080, 1920],
         video_min=None,
         video_max=None,
         video_fps=15,
@@ -135,7 +134,10 @@ def run(input_frame_number=2,
         if not os.path.exists(test_save_path):
             os.makedirs(test_save_path)
         fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-        out = cv2.VideoWriter(os.path.join(test_save_path, f'{video_name}_{video_fps}fps.mp4'), fourcc, video_fps, video_size[::-1])
+        dataloader_iter = iter(test_dataloader)
+        _, _, _, origin_image, _ = next(dataloader_iter)
+        _, height, width, _ = origin_image.shape
+        out = cv2.VideoWriter(os.path.join(test_save_path, f'{video_name}_{video_fps}fps.mp4'), fourcc, video_fps, (width*(input_frame_number+1), height))
 
         if isinstance(video_min, str):
             video_min = 0 if video_min.upper() == "NONE" else video_min
@@ -291,7 +293,6 @@ if __name__ == "__main__":
         npy_save_path="npy_result",
         show_flag=True,
         video_flag=True,
-        video_size = [1080, 1920],
         save_flag=True,
         video_min = None,
         video_max = None,

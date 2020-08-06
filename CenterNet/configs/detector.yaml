@@ -10,9 +10,7 @@ Dataset:
   show_flag: False
   npy_flag: True
   npy_save_path: npy_result
-  show_flag: False
-  video_flag: False
-  video_size: [1080, 1920] # height, width
+  video_flag: True
   video_min: None
   video_max: None
   video_fps: 15
@@ -30,10 +28,10 @@ Dataset:
   test_html_auto_open: False
 
 model:
-  training: True
-  load_name: 608_608_ADAM_PCENTER_RES18 # training = False,
+  training: False
+  load_name: 768_1280_ADAM_PCENTER_RES18 # training = False,
   save_period: 1
-  load_period: 10
+  load_period: 1
   input_size: [608, 608] # height, width
   input_frame_number: 1
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152

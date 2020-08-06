@@ -48,6 +48,7 @@ def export(input_frame_number = 2,
     try:
         script = torch.jit.script(prepostnet)
         script.save(os.path.join(new_weight_path, f'{load_name}-prepost-{load_period:04d}.jit'))
+
     except Exception as E:
         logging.error(f"jit export 예외 발생 : {E}")
     else:
@@ -55,12 +56,12 @@ def export(input_frame_number = 2,
 
 
 if __name__ == "__main__":
-    export(input_frame_number = 2,
+    export(input_frame_number = 1,
            originpath="weights",
            newpath="jitweights",
            load_name="608_608_ADAM_PCENTER_RES18",
-           load_period=10,
-           topk=5,
+           load_period=1,
+           topk=10,
            nms=False,
            except_class_thresh=0.1,
            nms_thresh=0.1)
