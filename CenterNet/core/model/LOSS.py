@@ -16,7 +16,7 @@ class HeatmapFocalLoss(Module):
 
         # a penalty-reduced pixelwise logistic regression with focal loss
         condition = label == 1
-        loss = torch.where(condition, torch.pow(1 - pred, self._alpha) * torch.log(pred), torch.pow(1 - label, self._beta) * torch.pow(pred, self._alpha) * torch.log(1 - pred))
+        loss = torch.where(condition, torch.pow(1 - pred, self._alpha) * torch.log(pred + 1e-7), torch.pow(1 - label, self._beta) * torch.pow(pred, self._alpha) * torch.log((1 - pred) + 1e-7))
         loss = -torch.sum(loss, dim=[1,2,3]).mean()
         norm = torch.sum(condition).float().clamp(1, 1e30)
         return loss / norm
