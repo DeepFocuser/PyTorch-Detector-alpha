@@ -4,6 +4,7 @@ import platform
 
 import cv2
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from core import Voc_2007_AP
@@ -89,8 +90,7 @@ def run(input_frame_number=2,
         exit(0)
 
     weight_path = os.path.join(test_weight_path, load_name)
-    sym = os.path.join(weight_path, f'{load_name}-symbol.json')
-    params = os.path.join(weight_path, f'{load_name}-{load_period:04d}.params')
+    trace_path = os.path.join(weight_path, f'{load_name}-{load_period:04d}.jit')
 
     test_update_number_per_epoch = len(test_dataloader)
     if test_update_number_per_epoch < 1:

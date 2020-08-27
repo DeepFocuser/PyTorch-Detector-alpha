@@ -31,6 +31,7 @@ class DetectionDataset(Dataset):
         self._transform = transform
         self._items = []
         self._itemname = []
+        self._test = test
         self._make_item_list()
 
     def key_func(self, path):
