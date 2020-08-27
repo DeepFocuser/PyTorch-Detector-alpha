@@ -131,7 +131,7 @@ class Prediction(nn.Module):
         topk_xs = topk_xs.float() + xs
         topk_ys = topk_ys.float() + ys
 
-        # (batch, height*width, 2) / (3(각 인덱스), self_batch_size*self._topk)ㅋ
+        # (batch, height*width, 2) / (3(각 인덱스), self_batch_size*self._topk)
         w = wh[offset_xs[0], offset_xs[1], offset_xs[2]].reshape((-1, self._topk))
         h = wh[offset_ys[0], offset_ys[1], offset_ys[2]].reshape((-1, self._topk))
 
