@@ -53,7 +53,7 @@ def run(mean=[0.485, 0.456, 0.406],
         load_period=10,
         learning_rate=0.001, decay_lr=0.999, decay_step=10,
         GPU_COUNT=0,
-        Darknetlayer=53,
+        base=18,
         pretrained_base=True,
         valid_size=8,
         eval_period=5,
@@ -161,16 +161,16 @@ def run(mean=[0.485, 0.456, 0.406],
 
     optimizer = optimizer.upper()
     if pretrained_base:
-        model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_P" + "Dark_" + str(Darknetlayer)+f"_{input_frame_number}frame"
+        model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_P" + "Res_" + str(base)+f"_{input_frame_number}frame"
     else:
-        model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_Dark_" + str(Darknetlayer)+f"_{input_frame_number}frame"
+        model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_Res_" + str(base)+f"_{input_frame_number}frame"
 
     # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
     weight_path = os.path.join("weights", f"{model}")
     param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.pt')
 
     start_epoch = 0
-    net = Yolov3(Darknetlayer=Darknetlayer,
+    net = Yolov3(base=base,
                  input_size=input_size,
                  anchors=anchors,
                  num_classes=num_classes,  # foreground만
@@ -595,7 +595,7 @@ if __name__ == "__main__":
         load_period=10,
         learning_rate=0.001, decay_lr=0.999, decay_step=10,
         GPU_COUNT=0,
-        Darknetlayer=53,
+        base=18,
         pretrained_base=True,
         valid_size=8,
         eval_period=5,

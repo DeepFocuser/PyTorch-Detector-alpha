@@ -48,33 +48,6 @@ class Decoder(HybridBlock):
             bbox = F.tile(bbox, reps=(self._num_classes, 1, 1, 1, 1))  # (5, b, 169, 3, 4)
             class_pred = F.transpose(class_pred, axes=(3, 0, 1, 2)).expand_dims(axis=-1)  # (5, b, 169, 3, 1)
 
-            '''
-            여기에서 들었던 의문, 
-            block 안에서 데이터를 생성하면? ndarray의 경우 ctx를 지정 해줘야 하지 않나? with x.context as ctx 로 인해 생각할 필요 없다.
-            
-            상세 분석 : 아래와 같이 HybridBlock의 forward함수의 내부를 보면 x.context as ctx 로 default ctx를 
-            x의 ctx로 지정해주기 때문에(Decoder클래스에서 x=output) 상관없다. 
-            
-            느낀점 : 조금은 부족한 점이 있지만, gluon block, HybridBlock을 꽤나 견고하게 만든듯 
-            def forward(self, x, *args):
-                """Defines the forward computation. Arguments can be either
-                :py:class:`NDArray` or :py:class:`Symbol`."""
-                if isinstance(x, NDArray):
-                    with x.context as ctx:
-                        if self._active:
-                            return self._call_cached_op(x, *args)
-        
-                        try:
-                            params = {i: j.data(ctx) for i, j in self._reg_params.items()}
-                        except DeferredInitializationError:
-                            self._deferred_infer_shape(x, *args)
-                            for _, i in self.params.items():
-                                i._finish_deferred_init()
-                            params = {i: j.data(ctx) for i, j in self._reg_params.items()}
-        
-                        return self.hybrid_forward(ndarray, x, *args, **params)
-
-            '''
             id = F.broadcast_add(class_pred * 0,
                                  F.arange(0, self._num_classes).reshape(
                                      (0, 1, 1, 1, 1)))  # (5, b, 169, 3, 1)

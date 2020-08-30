@@ -27,12 +27,12 @@ Dataset:
 
 model:
   training: False
-  load_name: 608_608_ADAM_PDark_53 # training = False,
+  load_name: 608_608_ADAM_PRes_53 # training = False,
   save_period: 1
   load_period: 1
   input_size: [608, 608] # height, width
   input_frame_number: 1
-  Darknetlayer: 53 # only 53
+  base: 18 # 18, 34, 50, 101, 152
   pretrained_base: True
 
 hyperparameters:

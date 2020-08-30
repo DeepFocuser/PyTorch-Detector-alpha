@@ -1,5 +1,5 @@
-import mxnet as mx
-from mxnet.gluon import HybridBlock
+import torch
+from torch.nn import Module
 
 from core.utils.dataprocessing.predictFunction.decoder import Decoder
 
@@ -10,7 +10,7 @@ from core.utils.dataprocessing.predictFunction.decoder import Decoder
 '''
 
 
-class Prediction(HybridBlock):
+class Prediction(Module):
 
     def __init__(self,
                  unique_ids=["smoke"],
@@ -29,10 +29,10 @@ class Prediction(HybridBlock):
         self._nms_thresh = nms_thresh
         self._nms_topk = nms_topk
 
-    def hybrid_forward(self, F, output1, output2, output3,
-                       anchor1, anchor2, anchor3,
-                       offset1, offset2, offset3,
-                       stride1, stride2, stride3):
+    def forward(self, output1, output2, output3,
+                anchor1, anchor2, anchor3,
+                offset1, offset2, offset3,
+                stride1, stride2, stride3):
 
         results = []
         for out, an, off, st in zip([output1, output2, output3],
@@ -40,26 +40,53 @@ class Prediction(HybridBlock):
                                     [offset1, offset2, offset3],
                                     [stride1, stride2, stride3]):
             results.append(self._decoder(out, an, off, st))
+        results = torch.cat(results, dim=1)
 
-        results = F.concat(*results, dim=1)
+        ids = results[:,:,0:1]
+        scores = results[:,:,1:2]
+        bboxes = results[:,:,2:]
+
         if self._nms_thresh > 0 and self._nms_thresh < 1:
-            '''
-            Apply non-maximum suppression to input.
-            The output will be sorted in descending order according to score. 
-            Boxes with overlaps larger than overlap_thresh, 
-            smaller scores and background boxes will be removed and filled with -1, 
-            '''
-            results = F.contrib.box_nms(
-                results,
-                valid_thresh=self._except_class_thresh,
-                overlap_thresh=self._nms_thresh,
-                topk=self._nms_topk,
-                id_index=0, score_index=1, coord_start=2,
-                force_suppress=False, in_format="corner", out_format="corner")
 
-        ids = F.slice_axis(results, axis=-1, begin=0, end=1)
-        scores = F.slice_axis(results, axis=-1, begin=1, end=2)
-        bboxes = F.slice_axis(results, axis=-1, begin=2, end=6)
+            ids_list = []
+            scores_list = []
+            bboxes_list = []
+
+            # batch 별로 나누기
+            # for id, score, x_min, y_min, x_max, y_max in zip(ids, scores, xmin, ymin, xmax, ymax):
+            for id, score, box in zip(ids, scores, bboxes):
+                id_list = []
+                score_list = []
+                bbox_list = []
+                # id별로 나누기
+                for uid in self._unique_ids:
+                    indices = id == uid
+                    bbox = torch.cat(
+                        [box[:, 0:1][indices, None], box[:, 1:2][indices, None], box[:, 2:3][indices, None],
+                         box[:, 3:4][indices, None]], dim=-1)
+                    if uid < 0:  # 배경인 경우
+                        id_part, score_part, bbox_part = id[indices, None], score[indices, None], bbox
+                    else:
+                        id_part, score_part, bbox_part = self._non_maximum_suppression(id[indices, None],
+                                                                                       score[indices, None], bbox)
+
+                    id_list.append(id_part)
+                    score_list.append(score_part)
+                    bbox_list.append(bbox_part)
+
+                id_concat = torch.cat(id_list, dim=0)
+                score_concat = torch.cat(score_list, dim=0)
+                bbox_concat = torch.cat(bbox_list, dim=0)
+
+                ids_list.append(id_concat)
+                scores_list.append(score_concat)
+                bboxes_list.append(bbox_concat)
+
+            # batch 차원
+            ids = torch.stack(ids_list, dim=0)
+            scores = torch.stack(scores_list, dim=0)
+            bboxes = torch.stack(bboxes_list, dim=0)
+
         return ids, scores, bboxes
 
 
@@ -82,10 +109,7 @@ if __name__ == "__main__":
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=num_classes,  # foreground만
-                 pretrained=False,
-                 pretrained_path=os.path.join(root, "modelparam"),
-                 ctx=mx.cpu())
-    net.hybridize(active=True, static_alloc=True, static_shape=True)
+                 pretrained=False,)
 
     prediction = Prediction(
         from_sigmoid=False,
@@ -96,8 +120,9 @@ if __name__ == "__main__":
         multiperclass=True)
 
     # batch 형태로 만들기
-    image = image.expand_dims(axis=0)
-    label = label.expand_dims(axis=0)
+    image = image[None, :, :, :]
+    label = label[None, : , :]
+
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
     output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(

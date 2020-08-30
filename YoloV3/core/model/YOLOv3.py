@@ -1,14 +1,21 @@
+import logging
+import os
 from collections import OrderedDict
 
 import numpy as np
-from mxnet.gluon.nn import Conv2DTranspose
+import torch
+from torch.nn import Module, Sequential, Conv2d, LeakyReLU, BatchNorm2d
 
-from core.model.backbone.Darknet import *
+from core.model.backbone.ResNet import get_resnet
 
+logfilepath = ""
+if os.path.isfile(logfilepath):
+    os.remove(logfilepath)
+logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
-class YoloAnchorGenerator(HybridBlock):
+class YoloAnchorGenerator(object):
 
-    def __init__(self, index, anchor, feature, stride, alloc_size):
+    def __init__(self, anchor, feature, stride, alloc_size):
         super(YoloAnchorGenerator, self).__init__()
 
         fwidth, fheight = feature
@@ -16,54 +23,33 @@ class YoloAnchorGenerator(HybridBlock):
         width = max(fwidth, awidth)
         height = max(fheight, aheight)
 
-        anchor = np.reshape(anchor, (1, 1, -1, 2))
+        self._anchor = np.reshape(anchor, (1, 1, -1, 2))
+        self._anchor = torch.as_tensor(self._anchor)
+
         # grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
         grid_y, grid_x = np.mgrid[:height, :width]
         offset = np.concatenate((grid_x[:, :, np.newaxis], grid_y[:, :, np.newaxis]), axis=-1)  # (13, 13, 2)
         offset = np.expand_dims(offset, axis=0)  # (1, 13, 13, 2)
         offset = np.expand_dims(offset, axis=3)  # (1, 13, 13, 1, 2)
         stride = np.reshape(stride, (1, 1, 1, 2))
+        self._offset = torch.as_tensor(offset)
+        self._stride = torch.as_tensor(stride)
 
-        with self.name_scope():
-            self.anchor = self.params.get_constant(f'anchor_{index}', value=anchor)
-            self.offset = self.params.get_constant(f'offset_{index}', value=offset)
-            self.stride = self.params.get_constant(f'stride_{index}', value=stride)
+    def __call__(self):
+        return self._anchor, self._offset, self._stride
 
-    def hybrid_forward(self, F, x, anchor, offset, stride):
-        '''
-            mxnet 형식의 weight로 추출 할때는 아래의 과정이 필요 없으나, onnx weight로 추출 할 때 아래와 같이
-            F.identity로 감싸줘야, onnx_mxnet.export_model 에서 anchors, offsets, strides 를 출력으로 인식한다.
-            (anchor, offset, stride = self._anchor_generators[i](x) 을 바로 출력하면 안되고, F.identity로 감싸줘야
-            mxnet의 연산으로 인식하는 듯.)
-            mxnet 의 onnx 관련 API들이 완벽하진 않은듯.
-            또한 hybridize를 사용하려면 아래와 같이 3개로 감싸줘야 한다. 아래의 F.identity를 사용하지 않고 hybridize를 한다면,
-            mxnet.base.MXNetError: Error in operator node_0_backward:
-            [22:45:32] c:\jenkins\workspace\mxnet-tag\mxnet\src\imperative\./imperative_utils.h:725: Check failed:
-            g.GetAttr<size_t>("storage_type_num_unknown_nodes") == 0U (9 vs. 0) :
-            위와 같은 에러가 발생한다.
-        '''
-        anchor = F.identity(anchor)
-        offset = F.identity(offset)
-        stride = F.identity(stride)
-        return anchor, offset, stride
+class Yolov3(Module):
 
-
-class Yolov3(HybridBlock):
-
-    def __init__(self, Darknetlayer=53,
+    def __init__(self, base=18,
+                 input_frame_number=1,
                  input_size=(416, 416),
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=1,  # foreground만
                  pretrained=True,
-                 pretrained_path="modelparam",
-                 alloc_size=(64, 64),
-                 ctx=mx.cpu()):
+                 alloc_size=(64, 64)):
         super(Yolov3, self).__init__()
-
-        if Darknetlayer not in [53]:
-            raise ValueError
 
         in_height, in_width = input_size
         features = []
@@ -71,116 +57,96 @@ class Yolov3(HybridBlock):
         anchors = OrderedDict(anchors)
         anchors = list(anchors.values())[::-1]
         self._numoffst = len(anchors)
-
-        darknet_output = get_darknet(Darknetlayer, ctx=mx.cpu(), dummy=True)(
-            mx.nd.random_uniform(low=0, high=1, shape=(1, 6, in_height, in_width), ctx=mx.cpu()))
-        for out in darknet_output:  # feature_14, feature_24, feature_28
-            out_height, out_width = out.shape[2:]
+        self._resnet = get_resnet(base, pretrained=pretrained, input_frame_number=input_frame_number)
+        output = self._resnet(torch.rand(1, input_frame_number*3, in_height, in_width))
+        in_channels = []
+        for out in output:
+            _ , out_channel ,out_height, out_width = out.shape
+            in_channels.append(out_channel)
             features.append([out_width, out_height])
             strides.append([in_width // out_width, in_height // out_height])  # w, h
 
+        in_channels = in_channels[::-1]
         features = features[::-1]
         strides = strides[::-1]  # deep -> middle -> shallow 순으로 !!!
-        self._darkenet = get_darknet(Darknetlayer, pretrained=pretrained, ctx=ctx, root=pretrained_path)
         self._num_classes = num_classes
         self._num_pred = 5 + num_classes  # 고정
 
-        with self.name_scope():
+        head_init_num_channel = 512
+        trans_init_num_channel = 256
 
-            head_init_num_channel = 512
-            trans_init_num_channel = 256
-            self._head = HybridSequential()
-            self._transition = HybridSequential()
-            self._upsampleconv = HybridSequential()
-            self._anchor_generators = HybridSequential()
+        head = []
+        transition = []
+        self._anchor_generators = []
 
-            # output
-            for j in range(len(anchors)):
-                if j == 0:
-                    factor = 1
-                else:
-                    factor = 2
-                head_init_num_channel = head_init_num_channel // factor
-                for _ in range(3):
-                    self._head.add(Conv2D(channels=head_init_num_channel,
-                                          kernel_size=(1, 1),
-                                          strides=(1, 1),
-                                          padding=(0, 0),
-                                          use_bias=True,
-                                          in_channels=0,
-                                          weight_initializer=mx.init.Normal(0.01),
-                                          bias_initializer='zeros'
-                                          ))
-                    self._head.add(BatchNorm(epsilon=1e-5, momentum=0.9))
-                    self._head.add(LeakyReLU(0.1))
+        # output
+        for j in range(len(anchors)):
+            if j == 0:
+                factor = 1
+            else:
+                factor = 2
+            head_init_num_channel = head_init_num_channel // factor
+            for z in range(3):
 
-                    self._head.add(Conv2D(channels=head_init_num_channel * 2,
-                                          kernel_size=(3, 3),
-                                          strides=(1, 1),
-                                          padding=(1, 1),
-                                          use_bias=True,
-                                          in_channels=0,
-                                          weight_initializer=mx.init.Normal(0.01),
-                                          bias_initializer='zeros'
-                                          ))
-                    self._head.add(BatchNorm(epsilon=1e-5, momentum=0.9))
-                    self._head.add(LeakyReLU(0.1))
+                head.append(Conv2d(in_channels[j], head_init_num_channel,
+                                   kernel_size=1,
+                                   stride=1,
+                                   padding=0,
+                                   bias=True,
+                                   ))
+                head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+                head.append(LeakyReLU(negative_slope=0.1))
 
-                self._head.add(Conv2D(channels=len(anchors[j]) * self._num_pred,
-                                      kernel_size=(1, 1),
-                                      strides=(1, 1),
-                                      padding=(0, 0),
-                                      use_bias=True,
-                                      in_channels=0,
-                                      weight_initializer=mx.init.Normal(0.01),
-                                      bias_initializer='zeros'
-                                      ))
+                head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                                   kernel_size=3,
+                                   stride=1,
+                                   padding=1,
+                                   bias=True))
+                head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+                head.append(LeakyReLU(negative_slope=0.1))
 
-            # for upsample - transition
-            for i in range(len(anchors) - 1):
-                if i == 0:
-                    factor = 1
-                else:
-                    factor = 2
-                trans_init_num_channel = trans_init_num_channel // factor
-                self._transition.add(Conv2D(channels=trans_init_num_channel,
-                                            kernel_size=(1, 1),
-                                            strides=(1, 1),
-                                            padding=(0, 0),
-                                            use_bias=True,
-                                            in_channels=0,
-                                            weight_initializer=mx.init.Normal(0.01),
-                                            bias_initializer='zeros'
-                                            ))
-                self._transition.add(BatchNorm(epsilon=1e-5, momentum=0.9))
-                self._transition.add(LeakyReLU(0.1))
+            head.append(Conv2d(head_init_num_channel * 2, len(anchors[j]) * self._num_pred,
+                               kernel_size=1,
+                               stride=1,
+                               padding=0,
+                               bias=True
+                               ))
 
-            # for deconvolution upsampleing
-            for i in range(len(anchors) - 1):
-                if i == 0:
-                    factor = 1
-                else:
-                    factor = 2
-                trans_init_num_channel = trans_init_num_channel // factor
-                self._upsampleconv.add(Conv2DTranspose(trans_init_num_channel, kernel_size=3, strides=2, padding=1,
-                                                       output_padding=1, use_bias=True, in_channels=0))
-                self._upsampleconv.add(BatchNorm(epsilon=1e-5, momentum=0.9))
-                self._upsampleconv.add(LeakyReLU(0.1))
+        # for upsample - transition
+        for i in range(len(anchors) - 1):
+            if i == 0:
+                factor = 1
+            else:
+                factor = 2
+            trans_init_num_channel = trans_init_num_channel // factor
+            transition.append(Conv2d(trans_init_num_channel*2, trans_init_num_channel,
+                                     kernel_size=1,
+                                     stride=1,
+                                     padding=0,
+                                     bias=True,
+                                     ))
+            transition.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
+            transition.append(LeakyReLU(negative_slope=0.1))
 
-        for i, anchor, feature, stride in zip(range(len(anchors)), anchors, features, strides):
-            self._anchor_generators.add(
-                YoloAnchorGenerator(i, anchor, feature, stride, (alloc_size[0] * (2 ** i), alloc_size[1] * (2 ** i))))
+        for anchor, feature, stride in zip(anchors, features, strides):
+            self._anchor_generators.append(
+                YoloAnchorGenerator(anchor, feature, stride, (alloc_size[0] * (2 ** i), alloc_size[1] * (2 ** i))))
 
-        self._head.initialize(ctx=ctx)
-        self._transition.initialize(ctx=ctx)
-        self._upsampleconv.initialize(ctx=ctx)
-        self._anchor_generators.initialize(ctx=ctx)
+        self._head = Sequential(*head)
+        self._transition = Sequential(*transition)
+
+        for m in self.modules():
+            if isinstance(m, Conv2d):
+                pass
+                #print(m)
+                #torch.nn.init.normal_(m.weight, mean=0., std=0.01)
+                #torch.nn.init.zeros_(m.bias)
+
         logging.info(f"{self.__class__.__name__} Head weight init 완료")
 
-    def hybrid_forward(self, F, x):
+    def forward(self, x):
 
-        feature_36, feature_61, feature_74 = self._darkenet(x)
-
+        feature_36, feature_61, feature_74 = self._resnet(x)
         # first
         transition = self._head[:15](feature_74)  # darknet 기준 75 ~ 79
         output82 = self._head[15:19](transition)  # darknet 기준 79 ~ 82
@@ -188,29 +154,25 @@ class Yolov3(HybridBlock):
         # second
         transition = self._transition[0:3](transition)
 
-        # transition = F.UpSampling(transition, scale=2,
-        #                           sample_type='nearest')  # or sample_type = "bilinear" , 후에 deconvolution으로 대체
-        transition = self._upsampleconv[0:3](transition)
+        transition = torch.nn.functional.interpolate(transition, scale_factor=2, mode='nearest')
 
-        transition = F.concat(transition, feature_61, dim=1)
+        transition = torch.cat((transition, feature_61), dim=1)
 
         transition = self._head[19:34](transition)  # darknet 기준 75 ~ 91
+
         output94 = self._head[34:38](transition)  # darknet 기준 91 ~ 82
 
         # third
         transition = self._transition[3:](transition)
 
-        # transition = F.UpSampling(transition, scale=2,
-        #                           sample_type='nearest')  # or sample_type = "bilinear" , 후에 deconvolution으로 대체
-        transition = self._upsampleconv[3:](transition)
+        transition = torch.nn.functional.interpolate(transition, scale_factor=2, mode='nearest')
 
-        transition = F.concat(transition, feature_36, dim=1)
+        transition = torch.cat((transition, feature_36), dim=1)
         output106 = self._head[38:](transition)  # darknet 기준 91 ~ 106
 
-        output82 = F.transpose(output82,
-                               axes=(0, 2, 3, 1))
-        output94 = F.transpose(output94, axes=(0, 2, 3, 1))
-        output106 = F.transpose(output106, axes=(0, 2, 3, 1))
+        output82 = output82.permute(0, 2, 3, 1)
+        output94 = output94.permute(0, 2, 3, 1)
+        output106 = output106.permute(0, 2, 3, 1)
 
         # (batch size, height, width, len(anchors), (5 + num_classes)
         anchors = []
@@ -218,7 +180,7 @@ class Yolov3(HybridBlock):
         strides = []
 
         for i in range(self._numoffst):
-            anchor, offset, stride = self._anchor_generators[i](x)
+            anchor, offset, stride = self._anchor_generators[i]()
             anchors.append(anchor)
             offsets.append(offset)
             strides.append(stride)
@@ -232,21 +194,19 @@ class Yolov3(HybridBlock):
 if __name__ == "__main__":
 
     input_size = (544, 960)
+    device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    net = Yolov3(Darknetlayer=53,
+    net = Yolov3(base=18,
+                 input_frame_number=1,
                  input_size=input_size,
                  anchors={"shallow": [(7, 7), (11, 11), (15, 15), (12, 18), (21, 21), (28, 28), (35, 35)],
                           "middle": [(42, 42), (56, 56), (70, 70), (60, 80), (84, 84), (98, 98), (112, 112)],
                           "deep": [(126, 105), (203, 161), (210, 245), (315, 280), (385, 420)]},
                  num_classes=5,  # foreground만
                  pretrained=False,
-                 pretrained_path=os.path.join(root, "modelparam"),
-                 alloc_size=(64, 64),
-                 ctx=mx.cpu())
-    net.hybridize(active=True, static_alloc=True, static_shape=True)
-    output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(
-        mx.nd.random_uniform(low=0, high=1, shape=(2, 3, input_size[0], input_size[1]), ctx=mx.cpu()))
-
+                 alloc_size=(64, 64))
+    net.to(device)
+    output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(torch.rand(1, 3, input_size[0],input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
     for i, pred in enumerate([output1, output2, output3]):
         print(f"prediction {i + 1} : {pred.shape}")
