@@ -13,9 +13,9 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 model_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
-    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+    # 'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    # 'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+    # 'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -251,40 +251,40 @@ def resnet34(pretrained=False, progress=True, input_frame_number=2, **kwargs):
                    **kwargs)
 
 
-def resnet50(pretrained=False, progress=True, input_frame_number=2, **kwargs):
-    r"""ResNet-50 model from
-    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, input_frame_number,
-                   **kwargs)
-
-
-def resnet101(pretrained=False, progress=True, input_frame_number=2, **kwargs):
-    r"""ResNet-101 model from
-    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrained, progress, input_frame_number,
-                   **kwargs)
-
-
-def resnet152(pretrained=False, progress=True, input_frame_number=2, **kwargs):
-    r"""ResNet-152 model from
-    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrained, progress, input_frame_number,
-                   **kwargs)
+# def resnet50(pretrained=False, progress=True, input_frame_number=2, **kwargs):
+#     r"""ResNet-50 model from
+#     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+#
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#         progress (bool): If True, displays a progress bar of the download to stderr
+#     """
+#     return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress, input_frame_number,
+#                    **kwargs)
+#
+#
+# def resnet101(pretrained=False, progress=True, input_frame_number=2, **kwargs):
+#     r"""ResNet-101 model from
+#     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+#
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#         progress (bool): If True, displays a progress bar of the download to stderr
+#     """
+#     return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrained, progress, input_frame_number,
+#                    **kwargs)
+#
+#
+# def resnet152(pretrained=False, progress=True, input_frame_number=2, **kwargs):
+#     r"""ResNet-152 model from
+#     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+#
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#         progress (bool): If True, displays a progress bar of the download to stderr
+#     """
+#     return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrained, progress, input_frame_number,
+#                    **kwargs)
 
 def get_resnet(base, pretrained=False, input_frame_number=2):
 
@@ -292,12 +292,12 @@ def get_resnet(base, pretrained=False, input_frame_number=2):
         model = resnet18(pretrained=pretrained, input_frame_number=input_frame_number)
     elif base==34:
         model = resnet34(pretrained=pretrained, input_frame_number=input_frame_number)
-    elif base==50:
-        model = resnet50(pretrained=pretrained, input_frame_number=input_frame_number)
-    elif base==101:
-        model = resnet101(pretrained=pretrained, input_frame_number=input_frame_number)
-    elif base==152:
-        model = resnet152(pretrained=pretrained, input_frame_number=input_frame_number)
+    # elif base==50:
+    #     model = resnet50(pretrained=pretrained, input_frame_number=input_frame_number)
+    # elif base==101:
+    #     model = resnet101(pretrained=pretrained, input_frame_number=input_frame_number)
+    # elif base==152:
+    #     model = resnet152(pretrained=pretrained, input_frame_number=input_frame_number)
     else:
         raise ValueError
 
@@ -308,7 +308,7 @@ if __name__ == "__main__":
     input_size = (416, 416)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    net = get_resnet(50, pretrained=False, input_frame_number=2)
+    net = get_resnet(34, pretrained=False, input_frame_number=2)
     net.to(device)
     output = net(torch.rand(1, 6, input_size[0],input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
@@ -319,7 +319,7 @@ if __name__ == "__main__":
     '''
     < input size(height, width) : (416, 416) >
     < output number : 3 >
-    (1) feature shape : (1, 512, 52, 52)
-    (2) feature shape : (1, 1024, 26, 26)
-    (3) feature shape : (1, 2048, 13, 13)
+    (1) feature shape : torch.Size([1, 128, 52, 52])
+    (2) feature shape : torch.Size([1, 256, 26, 26])
+    (3) feature shape : torch.Size([1, 512, 13, 13])
     '''

@@ -18,7 +18,7 @@ class DetectionDataset(Dataset):
 
     CLASSES = ['smoke']
 
-    def __init__(self, path='valid', transform=None, sequence_number=2, test=False):
+    def __init__(self, path='valid', transform=None, sequence_number=1, test=False):
         super(DetectionDataset, self).__init__()
 
         if sequence_number < 1 and isinstance(sequence_number, float):

@@ -29,6 +29,73 @@ class Prediction(Module):
         self._nms_thresh = nms_thresh
         self._nms_topk = nms_topk
 
+    def _non_maximum_suppression(self, ids, scores, bboxes):
+
+        # https://gist.github.com/mkocabas/a2f565b27331af0da740c11c78699185
+        '''
+        1. 내림차순 정렬 하기
+        2. non maximum suppression 후 빈 박스들은  -1로 채우기
+
+        :param ids: (object number, 1)
+        :param scores: (object number, 1)
+        :param bboxes: (object number, 4)
+        :return: ids, scores, bboxes
+        '''
+
+        if ids.shape[0] == 1:
+            return ids, scores, bboxes
+
+        # 내림차순 정렬
+        indices = scores.argsort(dim=0, descending=True)[:,0] # 내림차순 정렬
+        ids = ids[indices]
+        scores = scores[indices]
+        xmin = bboxes[:,0:1][indices]
+        ymin = bboxes[:,1:2][indices]
+        xmax = bboxes[:,2:3][indices]
+        ymax = bboxes[:,3:4][indices]
+
+        # nms 알고리즘
+        x1 = xmin[:, 0]
+        y1 = ymin[:, 0]
+        x2 = xmax[:, 0]
+        y2 = ymax[:, 0]
+        mask = torch.ones_like(x1)
+        i = 0
+        while i < len(ids)-1:
+
+            xx1 = torch.max(x1[i], x1[i+1:])
+            yy1 = torch.max(y1[i], y1[i+1:])
+            xx2 = torch.min(x2[i], x2[i+1:])
+            yy2 = torch.min(y2[i], y2[i+1:])
+            w = xx2 - xx1 + 1
+            h = yy2 - yy1 + 1
+
+            box1_area = (x2[i] - x1[i] + 1) * (y2[i] - y1[i] + 1)
+            boxn_area = (x2[i+1:] - x1[i+1:] + 1) * (y2[i+1:] - y1[i+1:] + 1)
+            overlap = (w * h) / (box1_area + boxn_area - (w * h))
+            mask[i+1:] = torch.where(overlap > self._nms_thresh, torch.ones_like(overlap)*-1, torch.ones_like(overlap))
+            i+=1
+
+        # nms 한 것들 mask 씌우기
+        mask = mask[:,None]
+        ids = ids * mask
+        scores = scores * mask
+        xmin = xmin * mask
+        ymin = ymin * mask
+        xmax = xmax * mask
+        ymax = ymax * mask
+
+        # nms 한 것들 mask 씌우기
+        ids = torch.where(ids<0, torch.ones_like(ids)*-1, ids) # 0 : nms / -1 : 배경 -> -1 로 표현
+        scores = torch.where(scores<0, torch.ones_like(scores)*-1, scores)
+        xmin = torch.where(xmin<0, torch.ones_like(xmin)*-1, xmin)
+        ymin = torch.where(ymin<0, torch.ones_like(ymin)*-1, ymin)
+        xmax = torch.where(xmax<0, torch.ones_like(xmax)*-1, xmax)
+        ymax = torch.where(ymax<0, torch.ones_like(ymax)*-1, ymax)
+        bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
+
+        return ids, scores, bboxes
+
     def forward(self, output1, output2, output3,
                 anchor1, anchor2, anchor3,
                 offset1, offset2, offset3,
@@ -98,12 +165,12 @@ if __name__ == "__main__":
     input_size = (416, 416)
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform, sequence_number=2)
+    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform, sequence_number=1)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(Darknetlayer=53,
+    net = Yolov3(base=18,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
@@ -117,7 +184,7 @@ if __name__ == "__main__":
         nms_thresh=0.5,
         nms_topk=-1,
         except_class_thresh=0.05,
-        multiperclass=True)
+        multiperclass=False)
 
     # batch 형태로 만들기
     image = image[None, :, :, :]
@@ -135,12 +202,13 @@ if __name__ == "__main__":
     print(f"nms box predictions shape : {bboxes.shape}")
     '''
     multiperclass = True 일 때,
-    nms class id shape : (1, 53235, 1)
-    nms class scores shape : (1, 53235, 1)
-    nms box predictions shape : (1, 53235, 4)
+    nms class id shape : torch.Size([1, 10647, 1])
+    nms class scores shape : torch.Size([1, 10647, 1])
+    nms box predictions shape : torch.Size([1, 10647, 4])
 
     multiperclass = False 일 때,
-    nms class id shape : (1, 10647, 1)
-    nms class scores shape : (1, 10647, 1)
-    nms box predictions shape : (1, 10647, 4)
+    nms class id shape : torch.Size([1, 10647, 1])
+    nms class scores shape : torch.Size([1, 10647, 1])
+    nms box predictions shape : torch.Size([1, 10647, 4])
+
     '''

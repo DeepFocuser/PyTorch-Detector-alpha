@@ -10,7 +10,7 @@ from core.utils.util.image_utils import *
 
 class YoloTrainTransform(object):
 
-    def __init__(self, height, width, input_frame_number=2, mean=[0.485, 0.456, 0.406],
+    def __init__(self, height, width, input_frame_number=1, mean=[0.485, 0.456, 0.406],
                  std=[0.229, 0.224, 0.225], augmentation=False):
 
         self._height = height

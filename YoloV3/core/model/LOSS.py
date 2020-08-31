@@ -37,7 +37,7 @@ class Yolov3Loss(Module):
         class_pred = pred[:,:,5:]
 
         #2. loss 구하기
-        object_mask= objectness == 1
+        object_mask = objectness == 1
         noobject_mask = objectness == 0
 
         # coordinates loss

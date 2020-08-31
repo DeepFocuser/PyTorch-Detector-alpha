@@ -35,8 +35,8 @@ class YoloAnchorGenerator(object):
         self._offset = torch.as_tensor(offset)
         self._stride = torch.as_tensor(stride)
 
-    def __call__(self):
-        return self._anchor, self._offset, self._stride
+    def __call__(self, device, dtype):
+        return self._anchor.to(device = device, dtype = dtype), self._offset.to(device = device, dtype = dtype), self._stride.to(device = device, dtype = dtype)
 
 class Yolov3(Module):
 
@@ -85,25 +85,59 @@ class Yolov3(Module):
                 factor = 1
             else:
                 factor = 2
+                in_channels[j] = in_channels[j]*2
+
             head_init_num_channel = head_init_num_channel // factor
-            for z in range(3):
+            head.append(Conv2d(in_channels[j], head_init_num_channel,
+                               kernel_size=1,
+                               stride=1,
+                               padding=0,
+                               bias=True,
+                               ))
+            head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+            head.append(LeakyReLU(negative_slope=0.1))
 
-                head.append(Conv2d(in_channels[j], head_init_num_channel,
-                                   kernel_size=1,
-                                   stride=1,
-                                   padding=0,
-                                   bias=True,
-                                   ))
-                head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
-                head.append(LeakyReLU(negative_slope=0.1))
+            head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=True))
+            head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+            head.append(LeakyReLU(negative_slope=0.1))
 
-                head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
-                                   kernel_size=3,
-                                   stride=1,
-                                   padding=1,
-                                   bias=True))
-                head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
-                head.append(LeakyReLU(negative_slope=0.1))
+            head.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                               kernel_size=1,
+                               stride=1,
+                               padding=0,
+                               bias=True,
+                               ))
+            head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+            head.append(LeakyReLU(negative_slope=0.1))
+
+            head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=True))
+            head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+            head.append(LeakyReLU(negative_slope=0.1))
+
+            head.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                               kernel_size=1,
+                               stride=1,
+                               padding=0,
+                               bias=True,
+                               ))
+            head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+            head.append(LeakyReLU(negative_slope=0.1))
+
+            head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                               kernel_size=3,
+                               stride=1,
+                               padding=1,
+                               bias=True))
+            head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+            head.append(LeakyReLU(negative_slope=0.1))
 
             head.append(Conv2d(head_init_num_channel * 2, len(anchors[j]) * self._num_pred,
                                kernel_size=1,
@@ -128,7 +162,7 @@ class Yolov3(Module):
             transition.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
             transition.append(LeakyReLU(negative_slope=0.1))
 
-        for anchor, feature, stride in zip(anchors, features, strides):
+        for i, anchor, feature, stride in zip(range(len(anchors)), anchors, features, strides):
             self._anchor_generators.append(
                 YoloAnchorGenerator(anchor, feature, stride, (alloc_size[0] * (2 ** i), alloc_size[1] * (2 ** i))))
 
@@ -137,10 +171,9 @@ class Yolov3(Module):
 
         for m in self.modules():
             if isinstance(m, Conv2d):
-                pass
-                #print(m)
-                #torch.nn.init.normal_(m.weight, mean=0., std=0.01)
-                #torch.nn.init.zeros_(m.bias)
+                torch.nn.init.normal_(m.weight, mean=0., std=0.01)
+                if m.bias is not None:
+                    torch.nn.init.constant_(m.bias, 0)
 
         logging.info(f"{self.__class__.__name__} Head weight init 완료")
 
@@ -148,6 +181,7 @@ class Yolov3(Module):
 
         feature_36, feature_61, feature_74 = self._resnet(x)
         # first
+
         transition = self._head[:15](feature_74)  # darknet 기준 75 ~ 79
         output82 = self._head[15:19](transition)  # darknet 기준 79 ~ 82
 
@@ -180,7 +214,7 @@ class Yolov3(Module):
         strides = []
 
         for i in range(self._numoffst):
-            anchor, offset, stride = self._anchor_generators[i]()
+            anchor, offset, stride = self._anchor_generators[i](x.device, x.dtype)
             anchors.append(anchor)
             offsets.append(offset)
             strides.append(stride)
@@ -193,15 +227,15 @@ class Yolov3(Module):
 
 if __name__ == "__main__":
 
-    input_size = (544, 960)
+    input_size = (608, 608)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    net = Yolov3(base=18,
+    net = Yolov3(base=34,
                  input_frame_number=1,
                  input_size=input_size,
-                 anchors={"shallow": [(7, 7), (11, 11), (15, 15), (12, 18), (21, 21), (28, 28), (35, 35)],
-                          "middle": [(42, 42), (56, 56), (70, 70), (60, 80), (84, 84), (98, 98), (112, 112)],
-                          "deep": [(126, 105), (203, 161), (210, 245), (315, 280), (385, 420)]},
+                 anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
+                          "middle": [(30, 61), (62, 45), (59, 119)],
+                          "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=5,  # foreground만
                  pretrained=False,
                  alloc_size=(64, 64))

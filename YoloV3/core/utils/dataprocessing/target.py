@@ -1,12 +1,12 @@
-import mxnet as mx
-from mxnet.gluon import Block
+import torch
+from torch.nn import Module
 
 from core.utils.dataprocessing.targetFunction.encodedynamic import Encoderdynamic
 from core.utils.dataprocessing.targetFunction.encoderfix import Encoderfix
 from core.utils.dataprocessing.targetFunction.matching import Matcher
 
 
-class TargetGenerator(Block):
+class TargetGenerator(Module):
 
     def __init__(self, ignore_threshold=0.5, dynamic=False, from_sigmoid=False):
         super(TargetGenerator, self).__init__()
@@ -42,6 +42,7 @@ if __name__ == "__main__":
     import os
 
     input_size = (416, 416)
+    device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
     dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform)
@@ -49,30 +50,27 @@ if __name__ == "__main__":
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(Darknetlayer=53,
+    net = Yolov3(base=18,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=5,  # foreground만
-                 pretrained=False,
-                 pretrained_path=os.path.join(root, "modelparam"),
-                 ctx=mx.cpu())
-    net.hybridize(active=True, static_alloc=True, static_shape=True)
-
+                 pretrained=False,)
+    net.to(device)
     targetgenerator = TargetGenerator(ignore_threshold=0.5, dynamic=True, from_sigmoid=False)
 
     # batch 형태로 만들기
-    image = image.expand_dims(axis=0)
-    label = label.expand_dims(axis=0)
+    image = image[None,:,:]
+    label = label[None,:,:]
 
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
-    output1, output2, output3, anchor1, anchor2, anchor3, _, _, _, _, _, _ = net(image)
+    output1, output2, output3, anchor1, anchor2, anchor3, _, _, _, _, _, _ = net(image.to(device))
     xcyc_targets, wh_targets, objectness, class_targets, weights = targetgenerator([output1, output2, output3],
                                                                                    [anchor1, anchor2, anchor3],
-                                                                                   gt_boxes,
-                                                                                   gt_ids,
+                                                                                   gt_boxes.to(device),
+                                                                                   gt_ids.to(device),
                                                                                    input_size)
 
     print(f"< input size(height, width) : {input_size} >")

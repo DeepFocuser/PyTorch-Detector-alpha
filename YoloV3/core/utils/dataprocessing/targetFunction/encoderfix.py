@@ -1,26 +1,24 @@
-import mxnet as mx
 import numpy as np
-from mxnet.gluon import Block
+import torch
+from torch.nn import Module
 
 from core.utils.dataprocessing.targetFunction.matching import Matcher
 
 
-class BBoxCornerToCenter(Block):
+class BBoxCornerToCenter(Module):
     def __init__(self, axis=-1):
         super(BBoxCornerToCenter, self).__init__()
         self._axis = axis
 
     def forward(self, x):
-        F = mx.nd
-        xmin, ymin, xmax, ymax = F.split(x, axis=self._axis, num_outputs=4)
+        xmin, ymin, xmax, ymax = torch.split(x, 1, dim=self._axis)
         width = xmax - xmin
         height = ymax - ymin
-        x_center = xmin + width / 2
-        y_center = ymin + height / 2
+        x_center = torch.true_divide(xmin + width, 2)
+        y_center = torch.true_divide(ymin + height, 2)
         return x_center, y_center, width, height
 
-
-class Encoderfix(Block):
+class Encoderfix(Module):
 
     def __init__(self, ignore_threshold=0.5):
         super(Encoderfix, self).__init__()
@@ -29,7 +27,6 @@ class Encoderfix(Block):
 
     def forward(self, matches, ious, outputs, anchors, gt_boxes, gt_ids, input_size):
 
-        F = mx.nd
         in_height = input_size[0]
         in_width = input_size[1]
         feature_size = []
@@ -40,27 +37,28 @@ class Encoderfix(Block):
             _, _, a, _ = anchor.shape
             feature_size.append([h, w])
             anchor_size.append(a)
-        all_anchors = F.concat(*[anchor.reshape(-1, 2) for anchor in anchors], dim=0)
-        num_anchors = np.cumsum([anchor_size for anchor_size in anchor_size])  # ex) (3, 6, 9)
+
+        all_anchors = torch.cat([anchor.reshape(-1, 2) for anchor in anchors], dim=0)
+        num_anchors = np.cumsum(anchor_size)  # ex) (3, 6, 9)
         num_offsets = np.cumsum([np.prod(feature) for feature in feature_size])  # ex) (338, 1690, 3549)
         offsets = [0] + num_offsets.tolist()
 
         # target 공간 만들어 놓기
-        xcyc_targets = F.zeros(shape=(gt_boxes.shape[0],
-                                      num_offsets[-1],
-                                      num_anchors[-1], 2),
-                               ctx=gt_boxes.context,
-                               dtype=gt_boxes.dtype)  # (batch, 3549, 9, 2)가 기본 요소
-        wh_targets = F.zeros_like(xcyc_targets)
-        weights = F.zeros_like(xcyc_targets)
-        objectness = F.zeros_like(xcyc_targets.split(axis=-1, num_outputs=2)[0])
-        class_targets = F.zeros_like(objectness)
+        xcyc_targets = torch.zeros(gt_boxes.shape[0],
+                                   num_offsets[-1],
+                                   num_anchors[-1], 2,
+                                   device=gt_boxes.device,
+                                   dtype=gt_boxes.dtype)  # (batch, 3549, 9, 2)가 기본 요소
+        wh_targets = torch.zeros_like(xcyc_targets)
+        weights = torch.zeros_like(xcyc_targets)
+        objectness = torch.zeros_like(xcyc_targets.split(2, dim=-1)[0])
+        class_targets = torch.zeros_like(objectness)
 
-        gtx, gty, gtw, gth = self._cornertocenter(gt_boxes)
-        np_gtx, np_gty, np_gtw, np_gth = [x.asnumpy() for x in [gtx, gty, gtw, gth]]
-        np_anchors = all_anchors.asnumpy()
-        np_gt_ids = gt_ids.asnumpy()
-        np_gt_ids = np_gt_ids.astype(int)
+        all_gtx, all_gty, all_gtw, all_gth = self._cornertocenter(gt_boxes)
+
+        np_gtx, np_gty, np_gtw, np_gth = [x.cpu().numpy().copy() for x in [all_gtx, all_gty, all_gtw, all_gth]]
+        np_anchors = all_anchors.cpu().numpy().copy().astype(float)
+        np_gt_ids = gt_ids.cpu().numpy().copy().astype(int)
 
         # 가장 큰것에 할당하고, target anchor 비교해서 0.5 이상인것들 무시하기
         batch, anchorN, objectN = ious.shape
@@ -109,32 +107,33 @@ class Encoderfix(Block):
         weights = self._slice(weights, num_anchors, num_offsets)
         objectness = self._slice(objectness, num_anchors, num_offsets)
         class_targets = self._slice(class_targets, num_anchors, num_offsets)
-        class_targets = F.squeeze(class_targets, axis=-1)
+        class_targets = class_targets.squeeze(-1)
 
-        # threshold 바꿔가며 개수 세어보기
-        # print((objectness == 1).sum().asscalar().astype(int))
-        # print((objectness == 0).sum().asscalar().astype(int))
-        # print((objectness == -1).sum().asscalar().astype(int))
+        # # threshold 바꿔가며 개수 세어보기
+        # print((objectness == 1).sum().item())
+        # print((objectness == 0).sum().item())
+        # print((objectness == -1).sum().item())
 
         return xcyc_targets, wh_targets, objectness, class_targets, weights
 
     def _slice(self, x, num_anchors, num_offsets):
-        F = mx.nd
+
         anchors = [0] + num_anchors.tolist()
         offsets = [0] + num_offsets.tolist()
         ret = []
         for i in range(len(num_anchors)):
             y = x[:, offsets[i]:offsets[i + 1], anchors[i]:anchors[i + 1], :]
-            ret.append(y.reshape(0, -3, -1))
-        return F.concat(*ret, dim=1)
-
+            b, f, a, _ = y.shape
+            ret.append(y.reshape(b, f*a, -1))
+        return torch.cat(ret, dim=1)
 
 # test
 if __name__ == "__main__":
     from core import Yolov3, YoloTrainTransform, DetectionDataset
     import os
 
-    input_size = (416, 416)
+    input_size = (608, 608)
+    device = torch.device("cpu")
     root = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
@@ -143,32 +142,30 @@ if __name__ == "__main__":
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(Darknetlayer=53,
+    net = Yolov3(base=18,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=num_classes,  # foreground만
-                 pretrained=False,
-                 pretrained_path=os.path.join(root, "modelparam"),
-                 ctx=mx.cpu())
-    net.hybridize(active=True, static_alloc=True, static_shape=True)
+                 pretrained=True)
+    net.to(device)
 
     matcher = Matcher()
     encoder = Encoderfix(ignore_threshold=0.5)
 
     # batch 형태로 만들기
-    image = image.expand_dims(axis=0)
-    label = label.expand_dims(axis=0)
+    image = image[None,:,:]
+    label = label[None,:,:]
 
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
-    output1, output2, output3, anchor1, anchor2, anchor3, _, _, _, _, _, _ = net(image)
+    output1, output2, output3, anchor1, anchor2, anchor3, _, _, _, _, _, _ = net(image.to(device))
 
-    matches, ious = matcher([anchor1, anchor2, anchor3], gt_boxes)
+    matches, ious = matcher([anchor1, anchor2, anchor3], gt_boxes.to(device))
     xcyc_targets, wh_targets, objectness, class_targets, weights = encoder(matches, ious, [output1, output2, output3],
-                                                                           [anchor1, anchor2, anchor3], gt_boxes,
-                                                                           gt_ids,
+                                                                           [anchor1, anchor2, anchor3], gt_boxes.to(device),
+                                                                           gt_ids.to(device),
                                                                            input_size)
 
     print(f"< input size(height, width) : {input_size} >")
