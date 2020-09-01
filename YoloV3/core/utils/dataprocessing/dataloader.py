@@ -8,7 +8,7 @@ from core.utils.dataprocessing.dataset import DetectionDataset
 from core.utils.dataprocessing.transformer import YoloTrainTransform, YoloValidTransform
 
 
-class Tuple(object):
+class Tuple_train(object):
 
     def __init__(self, fn, *args, dataset = None, interval = 10, train_transform=None):
 
@@ -34,7 +34,7 @@ class Tuple(object):
             train_transform = random.choice(self._train_transform)
         else:
             train_transform = self._train_transform[-1] # 원본사이즈 transform을 마지막 리스트의 요소로 놓기
-        data_transform =[train_transform(ele) for ele in data]
+        data_transform =[train_transform(*ele) for ele in data]
 
         assert len(data_transform[0]) == len(self._fn), \
             'The number of attributes in each data sample should contains' \
@@ -48,6 +48,29 @@ class Tuple(object):
 
         return ret
 
+class Tuple_valid(object):
+
+    def __init__(self, fn, *args):
+        if isinstance(fn, (list, tuple)):
+            assert len(args) == 0, 'Input pattern not understood. The input of Tuple can be ' \
+                                   'Tuple(A, B, C) or Tuple([A, B, C]) or Tuple((A, B, C)). ' \
+                                   'Received fn=%s, args=%s' % (str(fn), str(args))
+            self._fn = fn
+        else:
+            self._fn = (fn,) + args
+        for i, ele_fn in enumerate(self._fn):
+            assert hasattr(ele_fn, '__call__'), 'Batchify functions must be callable! ' \
+                                                'type(fn[%d]) = %s' % (i, str(type(ele_fn)))
+
+    def __call__(self, data):
+
+        assert len(data[0]) == len(self._fn), \
+            'The number of attributes in each data sample should contains' \
+            ' {} elements, given {}.'.format(len(self._fn), len(data[0]))
+        ret = []
+        for i, ele_fn in enumerate(self._fn):
+            ret.append(ele_fn([ele[i] for ele in data]))
+        return ret
 
 def _pad_arrs_to_max_length(arrs, pad_axis, pad_val):
     if not isinstance(arrs[0], (torch.Tensor, np.ndarray)):
@@ -125,7 +148,7 @@ def traindataloader(multiscale=False, factor_scale=[10, 9], augmentation=True, p
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        collate_fn=Tuple(Stack(),
+        collate_fn=Tuple_train(Stack(),
                          Pad(pad_val=-1),
                          Stack(),
 
@@ -152,7 +175,7 @@ def validdataloader(path="Dataset/valid",
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        collate_fn=Tuple(Stack(),
+        collate_fn=Tuple_valid(Stack(),
                          Pad(pad_val=-1),
                          Stack()),
         drop_last=False,
@@ -173,7 +196,7 @@ def testdataloader(path="Dataset/test", input_size=(512, 512), input_frame_numbe
     dataloader = DataLoader(
         dataset,
         batch_size=1,
-        collate_fn=Tuple(Stack(),
+        collate_fn=Tuple_valid(Stack(),
                          Pad(pad_val=-1),
                          Stack(),
                          Stack(),
@@ -188,9 +211,10 @@ if __name__ == "__main__":
     import os
 
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataloader, dataset = traindataloader(path=os.path.join(root, 'valid'),
+    # dataloader, dataset = traindataloader(path=os.path.join(root, 'valid'),
+    #                                       input_size=(320, 640))
+    dataloader, dataset = traindataloader(path='/home/jg/Desktop/mountain/valid',
                                           input_size=(320, 640))
-
     # for문 돌리기 싫으므로, iterator로 만든
     dataloader_iter = iter(dataloader)
     data, label, name = next(dataloader_iter)

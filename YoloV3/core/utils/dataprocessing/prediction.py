@@ -162,10 +162,10 @@ if __name__ == "__main__":
     from core import Yolov3, YoloTrainTransform, DetectionDataset
     import os
 
-    input_size = (416, 416)
+    input_size = (608, 608)
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform, sequence_number=1)
+    dataset = DetectionDataset(path='/home/jg/Desktop/mountain/valid', transform=transform, sequence_number=1)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]

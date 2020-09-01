@@ -237,8 +237,7 @@ def run(mean=[0.485, 0.456, 0.406],
                       from_sigmoid=False,
                       batch_axis=None,
                       num_classes=num_classes,
-                      reduction="sum",
-                      exclude=False)
+                      reduction="sum")
 
     prediction = Prediction(
         unique_ids=name_classes,
@@ -470,7 +469,7 @@ def run(mean=[0.485, 0.456, 0.406],
                     ground_truth_colors[k] = (0, 1, 0) # RGB
 
                 dataloader_iter = iter(valid_dataloader)
-                image, label, _, _, _, _, _ = next(dataloader_iter)
+                image, label, _ = next(dataloader_iter)
 
                 image = image.to(context)
                 label = label.to(context)

@@ -106,7 +106,7 @@ class Encoderdynamic(Module):
                                    dtype=gt_boxes.dtype)  # (batch, 3549, 9, 2)가 기본 요소
         wh_targets = torch.zeros_like(xcyc_targets)
         weights = torch.zeros_like(xcyc_targets)
-        objectness = torch.zeros_like(xcyc_targets.split(2, dim=-1)[0])
+        objectness = torch.zeros_like(xcyc_targets.split(1, dim=-1)[0])
         class_targets = torch.zeros_like(objectness)
 
         all_gtx, all_gty, all_gtw, all_gth = self._cornertocenter(gt_boxes)
@@ -223,7 +223,7 @@ if __name__ == "__main__":
     root = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform)
+    dataset = DetectionDataset(path='/home/jg/Desktop/mountain/valid', transform=transform)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]
@@ -264,7 +264,7 @@ if __name__ == "__main__":
     < input size(height, width) : (416, 416) >
     xcyc_targets shape : torch.Size([1, 10647, 2])
     wh_targets shape : torch.Size([1, 10647, 2])
-    objectness shape : torch.Size([1, 10647, 2])
-    class_targets shape : torch.Size([1, 10647, 2])
+    objectness shape : torch.Size([1, 10647, 1])
+    class_targets shape : torch.Size([1, 10647])
     weights shape : torch.Size([1, 10647, 2])
     '''

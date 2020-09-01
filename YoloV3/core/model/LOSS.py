@@ -7,8 +7,7 @@ class Yolov3Loss(Module):
                  from_sigmoid=False,
                  batch_axis=None,
                  num_classes=5,
-                 reduction="sum",
-                 exclude=False):
+                 reduction="sum"):
 
         super(Yolov3Loss, self).__init__()
         self._sparse_label = sparse_label
@@ -20,16 +19,15 @@ class Yolov3Loss(Module):
 
         self._sigmoid_ce = SigmoidBinaryCrossEntropyLoss(from_sigmoid=from_sigmoid,
                                                          batch_axis=batch_axis,
-                                                         reduction=reduction,
-                                                         exclude=exclude)
+                                                         reduction=reduction)
         self._l2loss = L2Loss(batch_axis=batch_axis,
-                              reduction=reduction,
-                              exclude=exclude)
+                              reduction=reduction)
 
-    def forward(self, output1, output2, outptut3, xcyc_target, wh_target, objectness, class_target, weights):
+    def forward(self, output1, output2, output3, xcyc_target, wh_target, objectness, class_target, weights):
 
         #1. prediction 쪼개기
-        pred = torch.cat([out.reshape(0, -1, self._num_pred) for out in [output1, output2, outptut3]], dim=1)
+        b, _, _, _ = output1.shape
+        pred = torch.cat([out.reshape(b, -1, self._num_pred) for out in [output1, output2, output3]], dim=1)
 
         xcyc_pred = pred[:,:,0:2]
         wh_pred = pred[:,:,2:4]
@@ -53,7 +51,10 @@ class Yolov3Loss(Module):
         object_loss = torch.add(noobj_loss, obj_loss)
 
         if self._sparse_label:
-            class_target = torch.nn.functional.one_hot(class_target, self._num_classes)
+            class_target = class_target.to(torch.int64)
+            class_target = torch.nn.functional.one_hot(class_target+1, self._num_classes + 1)
+            class_target = class_target[:,:,0:1]
+
         # class loss
         class_loss = self._sigmoid_ce(class_pred, class_target, object_mask)
 
@@ -72,15 +73,15 @@ class L2Loss(Module):
         if sample_weight is not None:
             loss = torch.mul(loss, sample_weight)
         if self._reduction == "SUM":
-            return torch.sum(loss, dim=[1,2,3]).mean()
+            return torch.sum(loss, dim=[1,2]).mean()
         elif self._reduction == "MEAN":
-            return torch.mean(loss, dim=[1,2,3])
+            return torch.mean(loss, dim=[1,2])
         else:
             raise NotImplementedError
 
 class SigmoidBinaryCrossEntropyLoss(Module):
 
-    def __init__(self, from_sigmoid=False, batch_axis=0, reduction="sum", exclude=False):
+    def __init__(self, from_sigmoid=False, batch_axis=0, reduction="sum"):
         super(SigmoidBinaryCrossEntropyLoss, self).__init__()
         self._from_sigmoid = from_sigmoid
         self._batch_axis = batch_axis
@@ -111,8 +112,8 @@ class SigmoidBinaryCrossEntropyLoss(Module):
             loss = torch.mul(loss, sample_weight)
 
         if self._reduction == "SUM":
-            return torch.sum(loss, dim=[1,2,3]).mean()
+            return torch.sum(loss, dim=[1,2]).mean()
         elif self._reduction == "MEAN":
-            return torch.mean(loss, dim=[1,2,3])
+            return torch.mean(loss, dim=[1,2])
         else:
             raise NotImplementedError

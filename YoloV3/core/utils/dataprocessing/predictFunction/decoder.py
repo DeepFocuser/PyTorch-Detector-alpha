@@ -33,8 +33,8 @@ class Decoder(Module):
         네트워크에서 출력할 때 충분히 크게 만들면,
         c++에서 inference 할 때 어떤 값을 넣어도 정상적으로 동작하게 된다. 
         '''
-        offset = offset[:, :h, :w, :, :]
-        offset = offset.reshape((batch_size, -1, 1, 2))
+        offset = offset[:, :w, :h, :, :]
+        offset = offset.reshape((1, -1, 1, 2))
 
         xy_preds = torch.mul(torch.add(xy_pred, offset), stride)
         wh_preds = torch.mul(torch.exp(wh_pred), anchor)
@@ -81,13 +81,13 @@ if __name__ == "__main__":
     from core import Yolov3, YoloTrainTransform, DetectionDataset
     import os
 
-    input_size = (416, 416)
+    input_size = (608, 608)
     device = torch.device("cuda")
     root = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform)
+    dataset = DetectionDataset(path='/home/jg/Desktop/mountain/valid', transform=transform)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]

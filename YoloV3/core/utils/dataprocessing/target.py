@@ -55,7 +55,7 @@ if __name__ == "__main__":
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
-                 num_classes=5,  # foreground만
+                 num_classes=1,  # foreground만
                  pretrained=False,)
     net.to(device)
     targetgenerator = TargetGenerator(ignore_threshold=0.5, dynamic=True, from_sigmoid=False)
