@@ -27,7 +27,7 @@ Dataset:
 
 model:
   training: True
-  load_name: 608_608_ADAM_PRes_53 # training = False,
+  load_name: 608_608_ADAM_PRes_18_1frame # training = False,
   save_period: 1
   load_period: 25
   input_size: [608, 608] # height, width

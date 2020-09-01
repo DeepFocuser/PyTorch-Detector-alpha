@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 import numpy as np
 import torch
-from torch.nn import Module, Sequential, Conv2d, LeakyReLU, BatchNorm2d
+from torch.nn import Module, Sequential, Conv2d, LeakyReLU, BatchNorm2d, ModuleList
 
 from core.model.backbone.ResNet import get_resnet
 
@@ -13,7 +13,7 @@ if os.path.isfile(logfilepath):
     os.remove(logfilepath)
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
-class YoloAnchorGenerator(object):
+class YoloAnchorGenerator(Module):
 
     def __init__(self, anchor, feature, stride, alloc_size):
         super(YoloAnchorGenerator, self).__init__()
@@ -24,7 +24,7 @@ class YoloAnchorGenerator(object):
         height = max(fheight, aheight)
 
         self._anchor = np.reshape(anchor, (1, 1, -1, 2))
-        self._anchor = torch.as_tensor(self._anchor)
+        self._anchor = torch.as_tensor(self._anchor, dtype=torch.float32)
 
         # grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
         grid_y, grid_x = np.mgrid[:height, :width]
@@ -32,11 +32,11 @@ class YoloAnchorGenerator(object):
         offset = np.expand_dims(offset, axis=0)  # (1, 13, 13, 2)
         offset = np.expand_dims(offset, axis=3)  # (1, 13, 13, 1, 2)
         stride = np.reshape(stride, (1, 1, 1, 2))
-        self._offset = torch.as_tensor(offset)
-        self._stride = torch.as_tensor(stride)
+        self._offset = torch.as_tensor(offset, dtype=torch.float32)
+        self._stride = torch.as_tensor(stride, dtype=torch.float32)
 
-    def __call__(self, device, dtype):
-        return self._anchor.to(device = device, dtype = dtype), self._offset.to(device = device, dtype = dtype), self._stride.to(device = device, dtype = dtype)
+    def forward(self):
+        return self._anchor, self._offset, self._stride
 
 class Yolov3(Module):
 
@@ -56,7 +56,6 @@ class Yolov3(Module):
         strides = []
         anchors = OrderedDict(anchors)
         anchors = list(anchors.values())[::-1]
-        self._numoffst = len(anchors)
         self._resnet = get_resnet(base, pretrained=pretrained, input_frame_number=input_frame_number)
         output = self._resnet(torch.rand(1, input_frame_number*3, in_height, in_width))
         in_channels = []
@@ -72,102 +71,237 @@ class Yolov3(Module):
         self._num_classes = num_classes
         self._num_pred = 5 + num_classes  # 고정
 
+        '''
+            torchscript에 쓰려면 아래와같이 풀어써야 함
+            sequential 써서 slice하면 안됨. 
+        '''
+
+        head1_1 = []
+        head1_2 = []
+        head2_1 = []
+        head2_2 = []
+        head3 = []
+
+        transition1 = []
+        transition2 = []
+        anchor_generators = []
+
+        # output 1
         head_init_num_channel = 512
-        trans_init_num_channel = 256
+        head1_1.append(Conv2d(in_channels[0], head_init_num_channel,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True,
+                              ))
+        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head1_1.append(LeakyReLU(negative_slope=0.1))
 
-        head = []
-        transition = []
-        self._anchor_generators = []
+        head1_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1,
+                              bias=True))
+        head1_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head1_1.append(LeakyReLU(negative_slope=0.1))
 
-        # output
-        for j in range(len(anchors)):
-            if j == 0:
-                factor = 1
-            else:
-                factor = 2
-                in_channels[j] = in_channels[j]*2
+        head1_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True,
+                              ))
+        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head1_1.append(LeakyReLU(negative_slope=0.1))
 
-            head_init_num_channel = head_init_num_channel // factor
-            head.append(Conv2d(in_channels[j], head_init_num_channel,
-                               kernel_size=1,
-                               stride=1,
-                               padding=0,
-                               bias=True,
-                               ))
-            head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
-            head.append(LeakyReLU(negative_slope=0.1))
+        head1_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1,
+                              bias=True))
+        head1_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head1_1.append(LeakyReLU(negative_slope=0.1))
 
-            head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
-                               kernel_size=3,
-                               stride=1,
-                               padding=1,
-                               bias=True))
-            head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
-            head.append(LeakyReLU(negative_slope=0.1))
+        head1_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True,
+                              ))
+        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head1_1.append(LeakyReLU(negative_slope=0.1))
 
-            head.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
-                               kernel_size=1,
-                               stride=1,
-                               padding=0,
-                               bias=True,
-                               ))
-            head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
-            head.append(LeakyReLU(negative_slope=0.1))
+        head1_2.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1,
+                              bias=True))
+        head1_2.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head1_2.append(LeakyReLU(negative_slope=0.1))
 
-            head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
-                               kernel_size=3,
-                               stride=1,
-                               padding=1,
-                               bias=True))
-            head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
-            head.append(LeakyReLU(negative_slope=0.1))
+        head1_2.append(Conv2d(head_init_num_channel * 2, len(anchors[0]) * self._num_pred,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True
+                              ))
 
-            head.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
-                               kernel_size=1,
-                               stride=1,
-                               padding=0,
-                               bias=True,
-                               ))
-            head.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
-            head.append(LeakyReLU(negative_slope=0.1))
+        # output 2
+        head_init_num_channel = 256
+        head2_1.append(Conv2d(in_channels[1]*2, head_init_num_channel,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True,
+                              ))
+        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head2_1.append(LeakyReLU(negative_slope=0.1))
 
-            head.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
-                               kernel_size=3,
-                               stride=1,
-                               padding=1,
-                               bias=True))
-            head.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
-            head.append(LeakyReLU(negative_slope=0.1))
+        head2_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1,
+                              bias=True))
+        head2_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head2_1.append(LeakyReLU(negative_slope=0.1))
 
-            head.append(Conv2d(head_init_num_channel * 2, len(anchors[j]) * self._num_pred,
-                               kernel_size=1,
-                               stride=1,
-                               padding=0,
-                               bias=True
-                               ))
+        head2_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True,
+                              ))
+        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head2_1.append(LeakyReLU(negative_slope=0.1))
+
+        head2_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1,
+                              bias=True))
+        head2_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head2_1.append(LeakyReLU(negative_slope=0.1))
+
+        head2_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True,
+                              ))
+        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head2_1.append(LeakyReLU(negative_slope=0.1))
+
+        head2_2.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                              kernel_size=3,
+                              stride=1,
+                              padding=1,
+                              bias=True))
+        head2_2.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head2_2.append(LeakyReLU(negative_slope=0.1))
+
+        head2_2.append(Conv2d(head_init_num_channel * 2, len(anchors[1]) * self._num_pred,
+                              kernel_size=1,
+                              stride=1,
+                              padding=0,
+                              bias=True
+                              ))
+
+        # output 3
+        head_init_num_channel = 256
+        head3.append(Conv2d(in_channels[2]*2, head_init_num_channel,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0,
+                            bias=True,
+                            ))
+        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head3.append(LeakyReLU(negative_slope=0.1))
+
+        head3.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                            kernel_size=3,
+                            stride=1,
+                            padding=1,
+                            bias=True))
+        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head3.append(LeakyReLU(negative_slope=0.1))
+
+        head3.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0,
+                            bias=True,
+                            ))
+        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head3.append(LeakyReLU(negative_slope=0.1))
+
+        head3.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                            kernel_size=3,
+                            stride=1,
+                            padding=1,
+                            bias=True))
+        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head3.append(LeakyReLU(negative_slope=0.1))
+
+        head3.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0,
+                            bias=True,
+                            ))
+        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head3.append(LeakyReLU(negative_slope=0.1))
+
+        head3.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
+                            kernel_size=3,
+                            stride=1,
+                            padding=1,
+                            bias=True))
+        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head3.append(LeakyReLU(negative_slope=0.1))
+
+        head3.append(Conv2d(head_init_num_channel * 2, len(anchors[2]) * self._num_pred,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0,
+                            bias=True
+                            ))
 
         # for upsample - transition
-        for i in range(len(anchors) - 1):
-            if i == 0:
-                factor = 1
-            else:
-                factor = 2
-            trans_init_num_channel = trans_init_num_channel // factor
-            transition.append(Conv2d(trans_init_num_channel*2, trans_init_num_channel,
-                                     kernel_size=1,
-                                     stride=1,
-                                     padding=0,
-                                     bias=True,
-                                     ))
-            transition.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
-            transition.append(LeakyReLU(negative_slope=0.1))
+        trans_init_num_channel = 256
+        transition1.append(Conv2d(trans_init_num_channel * 2, trans_init_num_channel,
+                                  kernel_size=1,
+                                  stride=1,
+                                  padding=0,
+                                  bias=True,
+                                  ))
+        transition1.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
+        transition1.append(LeakyReLU(negative_slope=0.1))
+
+        trans_init_num_channel = 128
+        transition2.append(Conv2d(trans_init_num_channel * 2, trans_init_num_channel,
+                                  kernel_size=1,
+                                  stride=1,
+                                  padding=0,
+                                  bias=True,
+                                  ))
+        transition2.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
+        transition2.append(LeakyReLU(negative_slope=0.1))
 
         for i, anchor, feature, stride in zip(range(len(anchors)), anchors, features, strides):
-            self._anchor_generators.append(
+            anchor_generators.append(
                 YoloAnchorGenerator(anchor, feature, stride, (alloc_size[0] * (2 ** i), alloc_size[1] * (2 ** i))))
 
-        self._head = Sequential(*head)
-        self._transition = Sequential(*transition)
+        self._head1_1 = Sequential(*head1_1)
+        self._head1_2 = Sequential(*head1_2)
+        self._head2_1 = Sequential(*head2_1)
+        self._head2_2 = Sequential(*head2_2)
+        self._head3 = Sequential(*head3)
+
+        self._transition1 = Sequential(*transition1)
+        self._transition2 = Sequential(*transition2)
+
+        # ModuleList를 사용해야 torchscript에 써짐
+        self._anchor_generators = ModuleList(anchor_generators)
 
         for m in self.modules():
             if isinstance(m, Conv2d):
@@ -182,27 +316,28 @@ class Yolov3(Module):
         feature_36, feature_61, feature_74 = self._resnet(x)
         # first
 
-        transition = self._head[:15](feature_74)  # darknet 기준 75 ~ 79
-        output82 = self._head[15:19](transition)  # darknet 기준 79 ~ 82
+        transition = self._head1_1(feature_74)  # darknet 기준 75 ~ 79
+        output82 = self._head1_2(transition)  # darknet 기준 79 ~ 82
 
         # second
-        transition = self._transition[0:3](transition)
-
-        transition = torch.nn.functional.interpolate(transition, scale_factor=2, mode='nearest')
+        transition = self._transition1(transition)
+        # scale_factor 는 무조건 2.0으로 / 정수 쓰면 안됨
+        transition = torch.nn.functional.interpolate(transition, scale_factor=2.0, mode='nearest')
 
         transition = torch.cat((transition, feature_61), dim=1)
 
-        transition = self._head[19:34](transition)  # darknet 기준 75 ~ 91
+        transition = self._head2_1(transition)  # darknet 기준 75 ~ 91
 
-        output94 = self._head[34:38](transition)  # darknet 기준 91 ~ 82
+        output94 = self._head2_2(transition)  # darknet 기준 91 ~ 82
 
         # third
-        transition = self._transition[3:](transition)
+        transition = self._transition2(transition)
 
-        transition = torch.nn.functional.interpolate(transition, scale_factor=2, mode='nearest')
+        # scale_factor 는 무조건 2.0으로 / 정수 쓰면 안됨
+        transition = torch.nn.functional.interpolate(transition, scale_factor=2.0, mode='nearest')
 
         transition = torch.cat((transition, feature_36), dim=1)
-        output106 = self._head[38:](transition)  # darknet 기준 91 ~ 106
+        output106 = self._head3(transition)  # darknet 기준 91 ~ 106
 
         output82 = output82.permute(0, 2, 3, 1)
         output94 = output94.permute(0, 2, 3, 1)
@@ -213,17 +348,27 @@ class Yolov3(Module):
         offsets = []
         strides = []
 
-        for i in range(self._numoffst):
-            anchor, offset, stride = self._anchor_generators[i](x.device, x.dtype)
+        for ag in self._anchor_generators:
+            anchor, offset, stride = ag()
             anchors.append(anchor)
             offsets.append(offset)
             strides.append(stride)
+
+        ''' 
+        아래와 같은 코드는 안됨.
+        아래와 같은 오류 발생 
+        Expected integer literal for index:
+        '''
+        # for i in range(3):
+        #     anchor, offset, stride = self._anchor_generators[i]()
+        #     anchors.append(anchor)
+        #     offsets.append(offset)
+        #     strides.append(stride)
 
         return output82, output94, output106, \
                anchors[0], anchors[1], anchors[2], \
                offsets[0], offsets[1], offsets[2], \
                strides[0], strides[1], strides[2],
-
 
 if __name__ == "__main__":
 
@@ -265,3 +410,5 @@ if __name__ == "__main__":
     stride 2 w, h 순서 : (1, 1, 1, 2)
     stride 3 w, h 순서 : (1, 1, 1, 2)
     '''
+    script = torch.jit.script(net)
+    script.save('temp.jit')
