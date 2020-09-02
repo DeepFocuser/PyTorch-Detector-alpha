@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 import numpy as np
 import torch
-from torch.nn import Module, Sequential, Conv2d, LeakyReLU, BatchNorm2d, ModuleList
+from torch.nn import Module, Sequential, Conv2d, LeakyReLU, BatchNorm2d, ModuleList, Parameter
 
 from core.model.backbone.ResNet import get_resnet
 
@@ -34,6 +34,10 @@ class YoloAnchorGenerator(Module):
         stride = np.reshape(stride, (1, 1, 1, 2))
         self._offset = torch.as_tensor(offset, dtype=torch.float32)
         self._stride = torch.as_tensor(stride, dtype=torch.float32)
+
+        self._anchor = Parameter(self._anchor, requires_grad=False)
+        self._offset = Parameter(self._offset, requires_grad=False)
+        self._stride = Parameter(self._stride, requires_grad=False)
 
     def forward(self):
         return self._anchor, self._offset, self._stride
@@ -410,5 +414,3 @@ if __name__ == "__main__":
     stride 2 w, h 순서 : (1, 1, 1, 2)
     stride 3 w, h 순서 : (1, 1, 1, 2)
     '''
-    script = torch.jit.script(net)
-    script.save('temp.jit')

@@ -135,8 +135,8 @@ class PrePostNet(nn.Module):
         self._auxnet = auxnet
 
     def forward(self, x):
-        x = torch.sub(x, self._mean)
-        x = torch.div(x, self._scale)
+        x = torch.sub(x, self._mean.to(x.device))
+        x = torch.div(x, self._scale.to(x.device))
         x = x.permute(0, 3, 1, 2)
         heatmap_pred, offset_pred, wh_pred = self._net(x)
         return self._auxnet(heatmap_pred, offset_pred, wh_pred)

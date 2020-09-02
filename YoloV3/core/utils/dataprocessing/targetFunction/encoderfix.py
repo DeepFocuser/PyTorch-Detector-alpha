@@ -57,7 +57,7 @@ class Encoderfix(Module):
         all_gtx, all_gty, all_gtw, all_gth = self._cornertocenter(gt_boxes)
 
         np_gtx, np_gty, np_gtw, np_gth = [x.cpu().numpy().copy() for x in [all_gtx, all_gty, all_gtw, all_gth]]
-        np_anchors = all_anchors.cpu().numpy().copy()# .astype(float)
+        np_anchors = all_anchors.cpu().numpy().copy().astype(float)
         np_gt_ids = gt_ids.cpu().numpy().copy().astype(int)
 
         # 가장 큰것에 할당하고, target anchor 비교해서 0.5 이상인것들 무시하기

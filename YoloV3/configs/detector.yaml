@@ -1,6 +1,6 @@
 Dataset:
-  train: /home/jg/Desktop/mountain/valid
-  valid: /home/jg/Desktop/mountain/valid
+  train: valid
+  valid: valid
   test: valid
   test_weight_path: weights
 

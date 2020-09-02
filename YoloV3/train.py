@@ -177,8 +177,8 @@ def run(mean=[0.485, 0.456, 0.406],
                  pretrained=pretrained_base,
                  alloc_size=offset_alloc_size)
 
-    # https://github.com/sksq96/pytorch-summary
-    modelsummary(net.to(context), input_shape[1:])
+    # https://github.com/sksq96/pytorch-summary / because of anchor, not working
+    # modelsummary(net.to(context), input_shape[1:])
 
     if tensorboard:
         summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)
