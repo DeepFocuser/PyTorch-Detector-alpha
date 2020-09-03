@@ -91,7 +91,7 @@ class Yolov3(Module):
         anchor_generators = []
 
         # output 1
-        head_init_num_channel = 512
+        head_init_num_channel = in_channels[0]
         head1_1.append(Conv2d(in_channels[0], head_init_num_channel,
                               kernel_size=1,
                               stride=1,
@@ -151,7 +151,7 @@ class Yolov3(Module):
                               ))
 
         # output 2
-        head_init_num_channel = 256
+        head_init_num_channel = in_channels[0]//2
         head2_1.append(Conv2d(in_channels[1]*2, head_init_num_channel,
                               kernel_size=1,
                               stride=1,
@@ -211,7 +211,7 @@ class Yolov3(Module):
                               ))
 
         # output 3
-        head_init_num_channel = 256
+        head_init_num_channel = in_channels[0]//2
         head3.append(Conv2d(in_channels[2]*2, head_init_num_channel,
                             kernel_size=1,
                             stride=1,
@@ -271,7 +271,7 @@ class Yolov3(Module):
                             ))
 
         # for upsample - transition
-        trans_init_num_channel = 256
+        trans_init_num_channel = in_channels[0]//2
         transition1.append(Conv2d(trans_init_num_channel * 2, trans_init_num_channel,
                                   kernel_size=1,
                                   stride=1,
@@ -281,7 +281,7 @@ class Yolov3(Module):
         transition1.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
         transition1.append(LeakyReLU(negative_slope=0.1))
 
-        trans_init_num_channel = 128
+        trans_init_num_channel = in_channels[0]//4
         transition2.append(Conv2d(trans_init_num_channel * 2, trans_init_num_channel,
                                   kernel_size=1,
                                   stride=1,
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     input_size = (608, 608)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    net = Yolov3(base=34,
+    net = Yolov3(base=50,
                  input_frame_number=1,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],

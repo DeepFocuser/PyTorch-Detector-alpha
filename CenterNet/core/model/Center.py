@@ -55,6 +55,8 @@ class CenterNet(nn.Module):
         self._offset = nn.Sequential(*offset)
         self._wh = nn.Sequential(*wh)
 
+        logging.info(f"{self.__class__.__name__} weight init 완료")
+
     def forward(self,  x):
         feature = self._base_network(x)
 

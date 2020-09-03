@@ -1,7 +1,7 @@
 import glob
-import json
 import logging
 import os
+from xml.etree.ElementTree import parse
 
 import cv2
 import numpy as np
@@ -16,7 +16,7 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 class DetectionDataset(Dataset):
 
-    CLASSES = ['smoke']
+    CLASSES = ['meerkat', 'otter', 'panda', 'raccoon', 'pomeranian']
 
     def __init__(self, path='valid', transform=None, sequence_number=1, test=False):
         super(DetectionDataset, self).__init__()
@@ -27,7 +27,7 @@ class DetectionDataset(Dataset):
 
         self._name = os.path.basename(path)
         self._sequence_number = sequence_number
-        self._camera_list = glob.glob(os.path.join(path, "images", "*"))
+        self._image_path_List = sorted(glob.glob(os.path.join(path, "*.jpg")), key=lambda path: self.key_func(path))
         self._transform = transform
         self._items = []
         self._itemname = []
@@ -35,26 +35,20 @@ class DetectionDataset(Dataset):
         self._make_item_list()
 
     def key_func(self, path):
-
-        base_path = os.path.basename(path)
-        except_format = os.path.splitext(base_path)[0]
-        split_path = except_format.split("_")
-        number = int(split_path[-1])
-        return number
+        return path
 
     def _make_item_list(self):
-        if self._camera_list:
-            for camera_list in self._camera_list:
-                for camera in glob.glob(os.path.join(camera_list, "*")):
-                    image_path_list = sorted(glob.glob(os.path.join(camera, "*.jpg")), key=lambda path: self.key_func(path))
-                    for i in range(len(image_path_list) - (self._sequence_number - 1)):
-                        image_path = image_path_list[i:i + self._sequence_number]
-                        label_path = image_path[-1].replace("images", "labels").replace(".jpg", ".json")
-                        self._items.append((image_path, label_path))
-                        # base_image = os.path.basename(image_path[-1])
-                        # name = os.path.splitext(base_image)[0]
-                        # self._itemname.append(name)
-                        self._itemname.append(image_path[-1])
+
+        if self._image_path_List:
+            for i in range(len(self._image_path_List) - (self._sequence_number - 1)):
+                image_path = self._image_path_List[i:i + self._sequence_number]
+                xml_path = image_path[-1].replace(".jpg", ".xml")
+                self._items.append((image_path, xml_path))
+
+                # 이름 저장
+                base_image = os.path.basename(image_path[-1])
+                name = os.path.splitext(base_image)[0]
+                self._itemname.append(name)
         else:
             logging.info("The dataset does not exist")
 
@@ -84,46 +78,50 @@ class DetectionDataset(Dataset):
             return images, label, self._itemname[idx]
 
     def _parsing(self, path):
-        json_list = []
-        # json파일 parsing - 순서 -> topleft_x, topleft_y, bottomright_x, bottomright_y, center_x, center_y
+        xml_list = []
         try:
-            with open(path, mode='r') as json_file:
-                dict = json.load(json_file)
-                for i in range(len(dict["landmarkAttr"])):
-                    if "attributes" in list(dict["landmarkAttr"][i].keys()):
-                        xmin = int(dict["landmarkAttr"][i]["box"][0]['x'])
-                        ymin = int(dict["landmarkAttr"][i]["box"][0]['y'])
-                        xmax = int(dict["landmarkAttr"][i]["box"][1]['x'])
-                        ymax = int(dict["landmarkAttr"][i]["box"][1]['y'])
-                        category_id = dict["landmarkAttr"][i]["attributes"][0]['selected']
+            tree = parse(path)
+            root = tree.getroot()
+            object = root.findall("object")
+            for ob in object:
+                if ob.find("bndbox") != None:
+                    bndbox = ob.find("bndbox")
+                    xmin, ymin, xmax, ymax = [int(pos.text) for i, pos in enumerate(bndbox.iter()) if i > 0]
 
-                        if isinstance(category_id, (list, tuple)):
-                            category_id = category_id[0]
+                    # or
+                    # xmin = int(bndbox.findtext("xmin"))
+                    # ymin = int(bndbox.findtext("ymin"))
+                    # xmax = int(bndbox.findtext("xmax"))
+                    # ymax = int(bndbox.findtext("ymax"))
 
-                        if category_id == "0":
-                            classes = 0
-                        # elif category_id == "1":
-                        #     classes = 1
-                        elif category_id == 0:
-                            classes = 0
-                        # elif category_id == 1:
-                        #     classes = 1
-                        elif category_id == "smoke":
-                            classes = 0
-                        # elif category_id == "smoke":
-                        #     classes = 1
-                        else:
-                            xmin, ymin, xmax, ymax, classes = -1, -1, -1, -1, -1
-                        json_list.append((xmin, ymin, xmax, ymax, classes))
+                    select = ob.findtext("name")
+                    if select == "meerkat":
+                        classes = 0
+                    elif select == "otter":
+                        classes = 1
+                    elif select == "panda":
+                        classes = 2
+                    elif select == "raccoon":
+                        classes = 3
+                    elif select == "pomeranian":
+                        classes = 4
                     else:
-                        print(f"only image : {path}")
-                        json_list.append((-1, -1, -1, -1, -1))
+                        xmin, ymin, xmax, ymax, classes = -1, -1, -1, -1, -1
+                    xml_list.append((xmin, ymin, xmax, ymax, classes))
+                else:
+                    '''
+                        image만 있고 labeling 없는 데이터에 대비 하기 위함 - ssd, retinanet loss에는 아무런 영향이 없음.
+                        yolo 대비용임
+                    '''
+                    print(f"only image : {path}")
+                    xml_list.append((-1, -1, -1, -1, -1))
+
         except Exception:
-            # print(f"only image or json crash : {path}")
-            json_list.append((-1, -1, -1, -1, -1))
-            return np.array(json_list, dtype="float32")  # 반드시 numpy여야함.
+            print(f"only image or json crash : {path}")
+            xml_list.append((-1, -1, -1, -1, -1))
+            return np.array(xml_list, dtype="float32")  # 반드시 numpy여야함.
         else:
-            return np.array(json_list, dtype="float32")  # 반드시 numpy여야함.
+            return np.array(xml_list, dtype="float32")  # 반드시 numpy여야함.
 
     @property
     def classes(self):
@@ -146,9 +144,9 @@ if __name__ == "__main__":
     import random
     from core.utils.util.utils import plot_bbox
 
-    sequence_number = 3
+    sequence_number = 1
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataset = DetectionDataset(path=os.path.join(root, 'valid'), sequence_number=sequence_number)
+    dataset = DetectionDataset(path=os.path.join(root, 'Dataset', 'valid'), sequence_number=sequence_number)
 
     length = len(dataset)
     sequence_image, label, file_name = dataset[random.randint(0, length - 1)]

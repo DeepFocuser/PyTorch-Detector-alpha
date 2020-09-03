@@ -1,7 +1,7 @@
 Dataset:
-  train: valid
-  valid: valid
-  test: valid
+  train: Dataset/train
+  valid: Dataset/valid
+  test: Dataset/test
   test_weight_path: weights
 
   # Test
@@ -21,7 +21,7 @@ Dataset:
 
   # nms 관련
   nms: True
-  nms_thresh: 0.1
+  nms_thresh: 0.5
 
   plot_class_thresh: 0.1 # 그릴때 score_thresh 보다 큰 것들만 그린다.
   test_graph_path: test_Graph
@@ -29,7 +29,7 @@ Dataset:
 
 model:
   training: False
-  load_name: 768_1280_ADAM_PCENTER_RES18 # training = False,
+  load_name: 608_608_ADAM_PCENTER_RES18 # training = False,
   save_period: 1
   load_period: 1
   input_size: [608, 608] # height, width
@@ -49,7 +49,7 @@ hyperparameters:
   batch_log: 100
   subdivision: 1
   data_augmentation: False
-  num_workers: 4 # the number of multiprocessing workers to use for data preprocessing.
+  num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.
   optimizer: ADAM # ADAM, RMSPROP
   lambda_off: 1
   lambda_size: 0.1
@@ -66,7 +66,7 @@ validation:
   valid_html_auto_open: False
 mlflow:
   using_mlflow: True
-  run_name: MountainDetection
+  run_name: Animals
 
 
 

@@ -224,6 +224,8 @@ def _resnet(arch, block, layers, pretrained, progress, input_frame_number, **kwa
                                               progress=progress)
         verbose = model.load_state_dict(state_dict, strict=False)
         logging.info(verbose)
+    else:
+        logging.info(f'{arch} weight init 완료')
     return model
 
 

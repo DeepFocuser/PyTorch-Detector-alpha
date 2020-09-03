@@ -41,6 +41,8 @@ class UpConvResNet(nn.Module):
             if isinstance(m, nn.ConvTranspose2d):
                 self._bilinear_init(m)
 
+        logging.info(f"{self.__class__.__name__} weight init 완료")
+
     def _bilinear_init(self, m):
 
         w = m.weight.data
