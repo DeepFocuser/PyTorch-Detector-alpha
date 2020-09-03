@@ -12,7 +12,7 @@ import torchvision
 from torch.nn import DataParallel
 from torch.optim import Adam, RMSprop, SGD, lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
-from torchsummary import summary as modelsummary
+# from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
 from core import TargetGenerator

@@ -238,7 +238,7 @@ if __name__ == "__main__":
     net.to(device)
 
     matcher = Matcher()
-    encoder = Encoderdynamic(ignore_threshold=0.7, from_sigmoid=False)
+    encoder = Encoderdynamic(ignore_threshold=0.2, from_sigmoid=False)
 
     # batch 형태로 만들기
     image = image[None,:,:]

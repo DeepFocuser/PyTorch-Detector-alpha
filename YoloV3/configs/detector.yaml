@@ -17,7 +17,7 @@ Dataset:
   video_name: temp
   multiperclass: False
   nms_thresh: 0.1
-  nms_topk: -1 # 전체 다하면(-1) 너무 오래걸림.
+  nms_topk: 200 # 전체 다하면(-1) 너무 오래걸림.
   iou_thresh: 0.1
   except_class_thresh: 0.01 #0.05
   plot_class_thresh: 0.01 # 그릴때 score_thresh 보다 큰 것들만 그린다.
@@ -29,7 +29,7 @@ model:
   training: True
   load_name: 608_608_ADAM_PRes_18_1frame # training = False,
   save_period: 1
-  load_period: 25
+  load_period: 3
   input_size: [608, 608] # height, width
   input_frame_number: 1
   base: 18 # only 18, 34
@@ -51,7 +51,7 @@ hyperparameters:
   batch_size: 4
   batch_interval: 10 # multiscale을 몇 배치마다 할껀지?
   subdivision: 1
-  multiscale: False
+  multiscale: True
   factor_scale: [10, 9] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
   ignore_threshold: 0.7
   dynamic: True
@@ -64,7 +64,7 @@ hyperparameters:
 context:
   using_cuda: True
 validation:
-  valid_size: 8
+  valid_size: 4
   eval_period: 1
   tensorboard: True
   valid_graph_path: valid_Graph

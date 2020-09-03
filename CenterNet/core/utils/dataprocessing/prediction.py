@@ -3,9 +3,8 @@ import torch.nn as nn
 
 class Prediction(nn.Module):
 
-    def __init__(self, batch_size=1, unique_ids=["smoke"], topk=100, scale=4.0, nms=False, except_class_thresh=0.01, nms_thresh=0.5):
+    def __init__(self, unique_ids=["smoke"], topk=100, scale=4.0, nms=False, except_class_thresh=0.01, nms_thresh=0.5):
         super(Prediction, self).__init__()
-        self._batch_size = batch_size
         self._unique_ids = [-1] + [ i for i in range(len(unique_ids))]
         self._topk = topk
         self._scale = scale
@@ -114,8 +113,7 @@ class Prediction(nn.Module):
         topk_ys = torch.floor_divide(topk_indices, width)  # y축 index
         topk_xs = torch.fmod(topk_indices, width)  # x축 index
 
-        batch_indices = torch.arange(self._batch_size, device=ids.device)
-        batch_indices = batch_indices[:offset.shape[0], None]
+        batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
         batch_indices = batch_indices.repeat_interleave(self._topk, dim=-1) # (batch, self._topk)
 
         offset_xs_indices = torch.zeros_like(batch_indices, dtype=torch.int64)
@@ -221,7 +219,7 @@ if __name__ == "__main__":
                     pretrained=False)
 
 
-    prediction = Prediction(batch_size=10, unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.1, nms_thresh=0.5)
+    prediction = Prediction(unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.1, nms_thresh=0.5)
     heatmap, offset, wh = net(torch.rand(2, 6, input_size[0], input_size[1]))
     ids, scores, bboxes = prediction(heatmap, offset, wh)
 

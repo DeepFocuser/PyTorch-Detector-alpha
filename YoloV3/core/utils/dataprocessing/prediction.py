@@ -109,9 +109,23 @@ class Prediction(Module):
             results.append(self._decoder(out, an, off, st))
         results = torch.cat(results, dim=1)
 
-        ids = results[:,:,0:1]
+        ids = results[:, :, 0:1]
         scores = results[:,:,1:2]
         bboxes = results[:,:,2:]
+
+        batch_size, _, _ = ids.shape
+        if self._nms_topk > 0:
+            scores, topk_score_index = torch.topk(scores, self._nms_topk, dim=1, largest=True, sorted=True)
+            batch_indices = torch.arange(batch_size, device=ids.device).unsqueeze(dim=-1).repeat_interleave(self._nms_topk, dim=-1) # (batch, self._topk)
+            last_indices = torch.zeros_like(batch_indices, dtype=torch.int64)
+            indices = torch.cat((batch_indices, topk_score_index.squeeze(dim=-1), last_indices), dim=0).reshape((3, -1))
+
+            ids = ids[indices[0], indices[1], indices[2]].reshape(batch_size, self._nms_topk, -1)
+            x1 = bboxes[indices[0], indices[1], indices[2]].reshape(batch_size, self._nms_topk, -1)
+            y1 = bboxes[indices[0], indices[1], indices[2]+1].reshape(batch_size, self._nms_topk, -1)
+            x2 = bboxes[indices[0], indices[1], indices[2]+2].reshape(batch_size, self._nms_topk, -1)
+            y2 = bboxes[indices[0], indices[1], indices[2]+3].reshape(batch_size, self._nms_topk, -1)
+            bboxes = torch.cat((x1, y1, x2, y2), dim=-1)
 
         if self._nms_thresh > 0 and self._nms_thresh < 1:
 
@@ -182,7 +196,7 @@ if __name__ == "__main__":
         from_sigmoid=False,
         num_classes=num_classes,
         nms_thresh=0.5,
-        nms_topk=-1,
+        nms_topk=200,
         except_class_thresh=0.05,
         multiperclass=False)
 
