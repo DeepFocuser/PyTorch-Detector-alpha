@@ -101,7 +101,7 @@ class SigmoidBinaryCrossEntropyLoss(Module):
                 loss = pred - pred * label + log_weight * \
                        (torch.log(1 + torch.exp(-torch.abs(pred))) + torch.nn.functional.relu(-pred))
         else:
-            eps = 1e-12
+            eps = 1e-7
             if pos_weight is None:
                 loss = -(torch.log(pred + eps) * label
                          + torch.log(1. - pred + eps) * (1. - label))
