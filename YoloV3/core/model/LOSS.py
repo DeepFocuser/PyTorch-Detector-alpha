@@ -53,7 +53,7 @@ class Yolov3Loss(Module):
         if self._sparse_label:
             class_target = class_target.to(torch.int64)
             class_target = torch.nn.functional.one_hot(class_target+1, self._num_classes + 1)
-            class_target = class_target[:,:,0:1]
+            class_target = class_target[:,:,1:]
 
         # class loss
         class_loss = self._sigmoid_ce(class_pred, class_target, object_mask)
