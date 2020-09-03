@@ -116,8 +116,7 @@ def run(input_frame_number=2,
                       from_sigmoid=False,
                       batch_axis=None,
                       num_classes=num_classes,
-                      reduction="sum",
-                      exclude=False)
+                      reduction="sum")
 
     prediction = Prediction(
         from_sigmoid=False,
@@ -205,7 +204,7 @@ def run(input_frame_number=2,
             result_name = split_path[-1].replace(".jpg", ".npy")
             np.save(os.path.join(npy_path, result_name), scorebox)
 
-        for pair_ig in origin_image:
+        for pair_ig in origin_img:
             split_ig = torch.split(pair_ig, 3, dim=-1)
 
             hconcat_image_list = []
