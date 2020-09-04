@@ -12,7 +12,7 @@ import torchvision
 from torch.nn import DataParallel
 from torch.optim import Adam, RMSprop, SGD, lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
-# from torchsummary import summary as modelsummary
+from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
 from core import TargetGenerator
@@ -178,10 +178,13 @@ def run(mean=[0.485, 0.456, 0.406],
                  alloc_size=offset_alloc_size)
 
     # https://github.com/sksq96/pytorch-summary / because of anchor, not working
-    #if GPU_COUNT == 0:
-    #    modelsummary(net.to(context), input_shape[1:], device="cpu")
-    #elif GPU_COUNT == 1:
-    #    modelsummary(net.to(context), input_shape[1:], device="cuda")
+    try:
+        if GPU_COUNT == 0:
+            modelsummary(net.to(context), input_shape[1:], device="cpu")
+        elif GPU_COUNT == 1:
+            modelsummary(net.to(context), input_shape[1:], device="cuda")
+    except Exception:
+        logging.info("torchsummary 문제로 인해 summary 불가")
 
     if tensorboard:
         summary = SummaryWriter(log_dir=os.path.join("torchboard", model), max_queue=10, flush_secs=10)

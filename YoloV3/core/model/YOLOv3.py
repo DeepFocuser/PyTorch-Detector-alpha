@@ -39,7 +39,7 @@ class YoloAnchorGenerator(Module):
         self._offset = Parameter(self._offset, requires_grad=False)
         self._stride = Parameter(self._stride, requires_grad=False)
 
-    def forward(self):
+    def forward(self, x):
         return self._anchor, self._offset, self._stride
 
 class Yolov3(Module):
@@ -353,7 +353,7 @@ class Yolov3(Module):
         strides = []
 
         for ag in self._anchor_generators:
-            anchor, offset, stride = ag()
+            anchor, offset, stride = ag(x)
             anchors.append(anchor)
             offsets.append(offset)
             strides.append(stride)
@@ -364,7 +364,7 @@ class Yolov3(Module):
         Expected integer literal for index:
         '''
         # for i in range(3):
-        #     anchor, offset, stride = self._anchor_generators[i]()
+        #     anchor, offset, stride = self._anchor_generators[i](x)
         #     anchors.append(anchor)
         #     offsets.append(offset)
         #     strides.append(stride)
