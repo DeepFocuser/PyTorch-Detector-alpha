@@ -303,7 +303,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(image_part)
                 xcyc_target, wh_target, objectness, class_target, weights = targetgenerator(
                     [output1, output2, output3],
-                    [anchor1, anchor2, anchor3],
+                    [anchor1[0:1,:,:,:], anchor2[0:1,:,:,:], anchor3[0:1,:,:,:]], # because of dataparallel
                     gt_boxes_part,
                     gt_ids_part, (height, width))
 
@@ -413,12 +413,12 @@ def run(mean=[0.485, 0.456, 0.406],
                     image)
                 xcyc_target, wh_target, objectness, class_target, weights = targetgenerator(
                     [output1, output2, output3],
-                    [anchor1, anchor2, anchor3],
+                    [anchor1[0:1,:,:,:], anchor2[0:1,:,:,:], anchor3[0:1,:,:,:]],
                     gt_box,
                     gt_id, (height, width))
 
-                id, score, bbox = prediction(output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2,
-                                             offset3, stride1, stride2, stride3)
+                id, score, bbox = prediction(output1, output2, output3, anchor1[0:1,:,:,:], anchor2[0:1,:,:,:], anchor3[0:1,:,:,:], offset1[0:1,:,:,:], offset2[0:1,:,:,:],
+                                             offset3[0:1,:,:,:], stride1[0:1,:,:,:], stride2[0:1,:,:,:], stride3[0:1,:,:,:])
 
                 precision_recall.update(pred_bboxes=bbox,
                                         pred_labels=id,
@@ -484,8 +484,8 @@ def run(mean=[0.485, 0.456, 0.406],
 
                 output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(
                     image)
-                ids, scores, bboxes = prediction(output1, output2, output3, anchor1, anchor2, anchor3, offset1,
-                                                 offset2, offset3, stride1, stride2, stride3)
+                ids, scores, bboxes = prediction(output1, output2, output3, anchor1[0:1,:,:,:], anchor2[0:1,:,:,:], anchor3[0:1,:,:,:], offset1[0:1,:,:,:],
+                                                 offset2[0:1,:,:,:], offset3[0:1,:,:,:], stride1[0:1,:,:,:], stride2[0:1,:,:,:], stride3[0:1,:,:,:])
 
                 for img, gt_id, gt_box, id, score, bbox in zip(image, gt_ids, gt_boxes, ids, scores, bboxes):
                     split_img = torch.split(img, 3, dim=0)  # numpy split과 다르네...
