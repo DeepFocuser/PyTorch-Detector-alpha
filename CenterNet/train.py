@@ -176,7 +176,7 @@ def run(mean=[0.485, 0.456, 0.406],
     # https://github.com/sksq96/pytorch-summary
     if GPU_COUNT == 0:
         modelsummary(net.to(context), input_shape[1:], device="cpu")
-    elif GPU_COUNT == 1:
+    elif GPU_COUNT > 0:
         modelsummary(net.to(context), input_shape[1:], device="cuda")
 
     if tensorboard:
