@@ -181,7 +181,7 @@ def run(mean=[0.485, 0.456, 0.406],
     try:
         if GPU_COUNT == 0:
             modelsummary(net.to(context), input_shape[1:], device="cpu")
-        elif GPU_COUNT == 1:
+        elif GPU_COUNT > 0:
             modelsummary(net.to(context), input_shape[1:], device="cuda")
     except Exception:
         logging.info("torchsummary 문제로 인해 summary 불가")
