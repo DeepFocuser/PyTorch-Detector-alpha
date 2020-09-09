@@ -6,7 +6,7 @@
 * OS : ubuntu linux 16.04 LTS
 * Graphic card / driver : rtx 2080ti / 418.56
 * Anaconda version : 4.7.12
-* pytorch version : 1.6.0
+* pytorch version : 1.5.1
     * Configure Run Environment
         1. Create a virtual environment
         ```cmd
