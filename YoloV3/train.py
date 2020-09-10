@@ -52,6 +52,7 @@ def run(mean=[0.485, 0.456, 0.406],
         save_period=5,
         load_period=10,
         learning_rate=0.001, decay_lr=0.999, decay_step=10,
+        weight_decay = 0.000001,
         GPU_COUNT=0,
         base=18,
         pretrained_base=True,
@@ -208,11 +209,11 @@ def run(mean=[0.485, 0.456, 0.406],
     net.to(context)
 
     if optimizer.upper() == "ADAM":
-        trainer = Adam(net.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.000001)
+        trainer = Adam(net.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=weight_decay)
     elif optimizer.upper() == "RMSPROP":
-        trainer = RMSprop(net.parameters(), lr=learning_rate, alpha=0.99, weight_decay=0.000001, momentum=0)
+        trainer = RMSprop(net.parameters(), lr=learning_rate, alpha=0.99, weight_decay=weight_decay, momentum=0)
     elif optimizer.upper() == "SGD":
-        trainer = SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.000001)
+        trainer = SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
     else:
         logging.error("optimizer not selected")
         exit(0)
@@ -599,6 +600,7 @@ if __name__ == "__main__":
         save_period=5,
         load_period=10,
         learning_rate=0.001, decay_lr=0.999, decay_step=10,
+        weight_decay=0.000001,
         GPU_COUNT=0,
         base=18,
         pretrained_base=True,

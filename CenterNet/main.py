@@ -62,6 +62,7 @@ optimizer = parser["optimizer"]
 lambda_off = parser["lambda_off"]
 lambda_size = parser["lambda_size"]
 learning_rate = parser["learning_rate"]
+weight_decay = parser["weight_decay"]
 decay_lr = parser["decay_lr"]
 decay_step = parser["decay_step"]
 
@@ -116,6 +117,7 @@ if __name__ == "__main__":
             ml.log_param("lambda_off", lambda_off)
             ml.log_param("lambda_size", lambda_size)
             ml.log_param("learning rate", learning_rate)
+            ml.log_param("weight_decay", weight_decay)
             ml.log_param("decay lr", decay_lr)
             ml.log_param("decay_step", decay_step)
             ml.log_param("using_cuda", using_cuda)
@@ -148,6 +150,7 @@ if __name__ == "__main__":
                   save_period=save_period,
                   load_period=load_period,
                   learning_rate=learning_rate,
+                  weight_decay=weight_decay,
                   decay_lr=decay_lr,
                   decay_step=decay_step,
                   GPU_COUNT=GPU_COUNT,
