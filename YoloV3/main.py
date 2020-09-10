@@ -133,7 +133,7 @@ if __name__ == "__main__":
             ml.log_param("learning rate", learning_rate)
             ml.log_param("weight decay", weight_decay)
             ml.log_param("decay lr", decay_lr)
-            ml.log_param("decay_step", decay_step)
+            ml.log_param("decay step", decay_step)
             ml.log_param("using_cuda", using_cuda)
 
             ml.log_param("save_period", save_period)
