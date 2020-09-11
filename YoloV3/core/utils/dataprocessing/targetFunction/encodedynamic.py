@@ -192,12 +192,12 @@ class Encoderdynamic(Module):
     def _boxdecoder(self, output, anchor, stride):
 
         batch, height, width, _ = output.shape
-        stride = torch.as_tensor(stride, device=output.device)
+        stride = torch.as_tensor(stride, dtype=output.dtype, device=output.device)
         # grid_x, grid_y = np.meshgrid(np.arange(width), np.arange(height))
         grid_y, grid_x = np.mgrid[:height, :width]
         offset = np.concatenate((grid_x[:, :, np.newaxis], grid_y[:, :, np.newaxis]), axis=-1)  # (13,13,2)
         offset = np.reshape(offset, (1, -1, 1, 2))  # (1, 169, 1, 2)
-        offset = torch.as_tensor(offset, device=output.device)
+        offset = torch.as_tensor(offset, dtype=output.dtype, device=output.device)
 
         # 자르기
         output = output.reshape((batch, height*width, -1, self._num_pred))  # (b, 169, 3, 10)
