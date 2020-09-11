@@ -152,9 +152,10 @@ def run(input_frame_number=2,
         label = label.to(device)
         gt_boxes = label[:, :, :4]
         gt_ids = label[:, :, 4:5]
-
-        heatmap_pred, offset_pred, wh_pred = net(image)
-        ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
+        
+        with torch.no_grad():
+            heatmap_pred, offset_pred, wh_pred = net(image)
+            ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
 
         precision_recall.update(pred_bboxes=bboxes,
                                 pred_labels=ids,
