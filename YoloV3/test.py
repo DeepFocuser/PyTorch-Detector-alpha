@@ -159,14 +159,15 @@ def run(input_frame_number=2,
         label = label.to(device)
         gt_boxes = label[:, :, :4]
         gt_ids = label[:, :, 4:5]
+        
+        with torch.no_grad():
+            output1, output2, output3, \
+            anchor1, anchor2, anchor3, \
+            offset1, offset2, offset3, \
+            stride1, stride2, stride3 = net(image)
 
-        output1, output2, output3, \
-        anchor1, anchor2, anchor3, \
-        offset1, offset2, offset3, \
-        stride1, stride2, stride3 = net(image)
-
-        ids, scores, bboxes = prediction(output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2,
-                                         offset3, stride1, stride2, stride3)
+            ids, scores, bboxes = prediction(output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2,
+                                             offset3, stride1, stride2, stride3)
 
         precision_recall.update(pred_bboxes=bboxes,
                                 pred_labels=ids,
