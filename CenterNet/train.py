@@ -9,7 +9,6 @@ import cv2
 import mlflow as ml
 import numpy as np
 import torch
-import torch.autograd as autograd
 import torchvision
 from torch.nn import DataParallel
 from torch.optim import Adam, RMSprop, SGD, lr_scheduler
@@ -283,7 +282,7 @@ def run(mean=[0.485, 0.456, 0.406],
             heatmap_losses = []
             offset_losses = []
             wh_losses = []
-            total_loss = []
+            total_loss = 0.0
 
             for image_part, heatmap_target_part, offset_target_part, wh_target_part, mask_target_part in zip(
                     image_split,
@@ -305,11 +304,9 @@ def run(mean=[0.485, 0.456, 0.406],
                 offset_losses.append(offset_loss.item())
                 wh_losses.append(wh_loss.item())
 
-                total_loss.append(heatmap_loss + offset_loss + wh_loss)
+                total_loss = total_loss + (heatmap_loss + offset_loss + wh_loss)
 
-            # batch size만큼 나눠줘야 하지 않나?
-            autograd.backward(total_loss)
-
+            total_loss.backward()
             trainer.step()
             lr_sch.step()
 

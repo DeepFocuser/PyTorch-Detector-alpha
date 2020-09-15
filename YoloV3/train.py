@@ -7,7 +7,6 @@ import time
 import mlflow as ml
 import numpy as np
 import torch
-import torch.autograd as autograd
 import torchvision
 from torch.nn import DataParallel
 from torch.optim import Adam, RMSprop, SGD, lr_scheduler
@@ -299,7 +298,7 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_losses = []
             object_losses = []
             class_losses = []
-            total_loss = []
+            total_loss = 0.0
 
             for image_part, gt_boxes_part, gt_ids_part in zip(image_split, gt_boxes, gt_ids):
 
@@ -323,9 +322,9 @@ def run(mean=[0.485, 0.456, 0.406],
                 object_losses.append(object_loss.item())
                 class_losses.append(class_loss.item())
 
-                total_loss.append(xcyc_loss + wh_loss + object_loss + class_loss)
+                total_loss = total_loss + (xcyc_loss + wh_loss + object_loss + class_loss)
 
-            autograd.backward(total_loss)
+            total_loss.backward()
             trainer.step()
             lr_sch.step()
 
