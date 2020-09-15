@@ -96,7 +96,7 @@ class Yolov3(Module):
         anchor_generators = []
 
         # output 1
-        head_init_num_channel = in_channels[0]
+        head_init_num_channel = 512
         head1_1.append(Conv2d(in_channels[0], head_init_num_channel,
                               kernel_size=1,
                               stride=1,
@@ -156,8 +156,8 @@ class Yolov3(Module):
                               ))
 
         # output 2
-        head_init_num_channel = in_channels[0]//2
-        head2_1.append(Conv2d(in_channels[1]*2, head_init_num_channel,
+        head_init_num_channel = 256
+        head2_1.append(Conv2d(in_channels[1]+256, head_init_num_channel,
                               kernel_size=1,
                               stride=1,
                               padding=0,
@@ -216,8 +216,8 @@ class Yolov3(Module):
                               ))
 
         # output 3
-        head_init_num_channel = in_channels[0]//2
-        head3.append(Conv2d(in_channels[2]*2, head_init_num_channel,
+        head_init_num_channel = 256
+        head3.append(Conv2d(in_channels[2]+128, head_init_num_channel,
                             kernel_size=1,
                             stride=1,
                             padding=0,
@@ -276,7 +276,7 @@ class Yolov3(Module):
                             ))
 
         # for upsample - transition
-        trans_init_num_channel = in_channels[0]//2
+        trans_init_num_channel = 256
         transition1.append(Conv2d(trans_init_num_channel * 2, trans_init_num_channel,
                                   kernel_size=1,
                                   stride=1,
@@ -286,7 +286,7 @@ class Yolov3(Module):
         transition1.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
         transition1.append(LeakyReLU(negative_slope=0.1))
 
-        trans_init_num_channel = in_channels[0]//4
+        trans_init_num_channel = 128
         transition2.append(Conv2d(trans_init_num_channel * 2, trans_init_num_channel,
                                   kernel_size=1,
                                   stride=1,
@@ -330,6 +330,7 @@ class Yolov3(Module):
 
         # second
         transition = self._transition1(transition)
+
         # scale_factor 는 무조건 2.0으로 / 정수 쓰면 안됨
         transition = torch.nn.functional.interpolate(transition, scale_factor=2.0, mode='nearest')
 
@@ -391,11 +392,11 @@ if __name__ == "__main__":
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=5,  # foreground만
-                 pretrained=True,
+                 pretrained=False,
                  pretrained_path='/home/jg/Desktop/YoloV3/darknet53.pth',
                  alloc_size=(64, 64))
     net.to(device)
-    output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(torch.rand(1, 3, input_size[0],input_size[1], device=device))
+    output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(torch.rand(3, 3, input_size[0], input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
     for i, pred in enumerate([output1, output2, output3]):
         print(f"prediction {i + 1} : {pred.shape}")
