@@ -48,8 +48,9 @@ save_period = parser["save_period"]
 load_period = parser["load_period"]
 input_size = parser["input_size"]
 input_frame_number = parser['input_frame_number']
-base = parser["base"]
+Darknetlayer = parser["Darknetlayer"]
 pretrained_base = parser["pretrained_base"]
+pretrained_path = parser["pretrained_path"]
 
 # hyperparameters
 parser = stream['hyperparameters']
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     if training:
         if using_mlflow:
             ml.set_tracking_uri("./mlruns")  # mlruns가 기본 트래킹이다.
-            ex_id = ml.set_experiment("YOLOv3_" + "ResNet" + str(base))
+            ex_id = ml.set_experiment("YOLOv3_" + "Dark" + str(Darknetlayer))
             ml.start_run(run_name=run_name, experiment_id=ex_id)
 
             ml.log_param("image order", "RGB")
@@ -171,8 +172,9 @@ if __name__ == "__main__":
                   decay_lr=decay_lr,
                   decay_step=decay_step,
                   GPU_COUNT=GPU_COUNT,
-                  base=base,
+                  Darknetlayer=Darknetlayer,
                   pretrained_base=pretrained_base,
+                  pretrained_path = pretrained_path,
 
                   valid_size=valid_size,
                   eval_period=eval_period,

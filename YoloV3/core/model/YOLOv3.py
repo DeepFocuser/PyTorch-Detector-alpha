@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.nn import Module, Sequential, Conv2d, LeakyReLU, BatchNorm2d, ModuleList, Parameter
 
-from core.model.backbone.ResNet import get_resnet
+from core.model.backbone.DarkNet import get_darknet
 
 logfilepath = ""
 if os.path.isfile(logfilepath):
@@ -44,7 +44,7 @@ class YoloAnchorGenerator(Module):
 
 class Yolov3(Module):
 
-    def __init__(self, base=18,
+    def __init__(self, Darknetlayer=53,
                  input_frame_number=1,
                  input_size=(416, 416),
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
@@ -52,16 +52,21 @@ class Yolov3(Module):
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=1,  # foreground만
                  pretrained=True,
+                 pretrained_path="/home/jg/Desktop/YoloV3/darknet53.pth",
                  alloc_size=(64, 64)):
         super(Yolov3, self).__init__()
+
+        if Darknetlayer not in [53]:
+            raise ValueError
 
         in_height, in_width = input_size
         features = []
         strides = []
         anchors = OrderedDict(anchors)
         anchors = list(anchors.values())[::-1]
-        self._resnet = get_resnet(base, pretrained=pretrained, input_frame_number=input_frame_number)
-        output = self._resnet(torch.rand(1, input_frame_number*3, in_height, in_width))
+        self._darknet = get_darknet(Darknetlayer, pretrained=pretrained, pretrained_path=pretrained_path, input_frame_number=input_frame_number)
+
+        output = self._darknet(torch.rand(1, input_frame_number*3, in_height, in_width))
         in_channels = []
         for out in output:
             _ , out_channel ,out_height, out_width = out.shape
@@ -317,7 +322,7 @@ class Yolov3(Module):
 
     def forward(self, x):
 
-        feature_36, feature_61, feature_74 = self._resnet(x)
+        feature_36, feature_61, feature_74 = self._darknet(x)
         # first
 
         transition = self._head1_1(feature_74)  # darknet 기준 75 ~ 79
@@ -379,14 +384,15 @@ if __name__ == "__main__":
     input_size = (608, 608)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    net = Yolov3(base=50,
+    net = Yolov3(Darknetlayer=53,
                  input_frame_number=1,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=5,  # foreground만
-                 pretrained=False,
+                 pretrained=True,
+                 pretrained_path='/home/jg/Desktop/YoloV3/darknet53.pth',
                  alloc_size=(64, 64))
     net.to(device)
     output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(torch.rand(1, 3, input_size[0],input_size[1], device=device))

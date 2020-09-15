@@ -27,13 +27,15 @@ Dataset:
 
 model:
   training: True
-  load_name: 512_512_ADAM_PRes_18_1frame # training = False,
+  load_name: 608_608_ADAM_PDark_53_1frame # training = False,
   save_period: 1
   load_period: 1
-  input_size: [512, 512] # height, width
+  input_size: [608, 608] # height, width
   input_frame_number: 1
-  base: 18 # only 18, 34, 50, 101, 152
+  Darknetlayer: 53 # only 53
   pretrained_base: True
+  # weight download 받는 곳 https://drive.google.com/file/d/1keZwVIfcWmxfTiswzOKUwkUz2xjvTvfm/view
+  pretrained_path: /home/jg/Desktop/YoloV3/darknet53.pth
 
 hyperparameters:
 
@@ -46,17 +48,17 @@ hyperparameters:
             "deep": [(116, 90), (156, 198), (373, 326)]}'
 
   # 학습 관련
-  epoch: 30
+  epoch: 300
   batch_log: 100
   batch_size: 4
   batch_interval: 10 # multiscale을 몇 배치마다 할껀지?
   subdivision: 4
-  multiscale: True
-  factor_scale: [10, 6] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
+  multiscale: False
+  factor_scale: [10, 19] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
   ignore_threshold: 0.7
   dynamic: False
   data_augmentation: False
-  num_workers: 4 # the number of multiprocessing workers to use for data preprocessing.
+  num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.
   optimizer: ADAM # ADAM, RMSPROP, SGD
   learning_rate: 0.001
   weight_decay: 0.000001
