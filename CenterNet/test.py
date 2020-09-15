@@ -108,6 +108,7 @@ def run(input_frame_number=2,
 
     try:
         net = torch.jit.load(trace_path, map_location=device)
+        net.eval()
     except Exception:
         # DEBUG, INFO, WARNING, ERROR, CRITICAL 의 5가지 등급
         logging.info("loading jit 실패")
