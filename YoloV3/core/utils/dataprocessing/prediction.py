@@ -3,13 +3,6 @@ from torch.nn import Module
 
 from core.utils.dataprocessing.predictFunction.decoder import Decoder
 
-'''
-    Prediction 클래스를 hybridBlock 으로 만든이유?
-    net + decoder + nms =  complete object network로 만들어서 json, param 파일로 저장하기 위함
-    -> 장점은? mxnet c++에서 inference 할 때, image(RGB) 넣으면 ids, scores, bboxes 가 바로 출력
-'''
-
-
 class Prediction(Module):
 
     def __init__(self,
