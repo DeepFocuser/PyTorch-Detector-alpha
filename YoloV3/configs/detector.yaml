@@ -34,7 +34,7 @@ model:
   input_frame_number: 1
   Darknetlayer: 53 # only 53
   pretrained_base: True
-  # weight download 받는 곳 https://drive.google.com/file/d/1keZwVIfcWmxfTiswzOKUwkUz2xjvTvfm/view
+  # weight download 받는 곳 https://drive.google.com/uc?id=1VYwHUznM3jLD7ftmOSCHnpkVpBJcFIOA&export=download
   pretrained_path: /home/jg/Desktop/YoloV3/darknet53.pth
 
 hyperparameters:
