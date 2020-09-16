@@ -381,9 +381,11 @@ def run(mean=[0.485, 0.456, 0.406],
                 offset_target = offset_target.to(context)
                 wh_target = wh_target.to(context)
                 mask_target = mask_target.to(context)
-
-                heatmap_pred, offset_pred, wh_pred = net(image)
-                id, score, bbox = prediction(heatmap_pred, offset_pred, wh_pred)
+                
+                with torch.no_grad():
+                    heatmap_pred, offset_pred, wh_pred = net(image)
+                    id, score, bbox = prediction(heatmap_pred, offset_pred, wh_pred)
+                    
                 precision_recall.update(pred_bboxes=bbox,
                                         pred_labels=id,
                                         pred_scores=score,
@@ -438,9 +440,10 @@ def run(mean=[0.485, 0.456, 0.406],
                 label = label.to(context)
                 gt_boxes = label[:, :, :4]
                 gt_ids = label[:, :, 4:5]
-
-                heatmap_pred, offset_pred, wh_pred = net(image)
-                ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
+                
+                with torch.no_grad():
+                    heatmap_pred, offset_pred, wh_pred = net(image)
+                    ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
 
                 for img, gt_id, gt_box, heatmap, id, score, bbox in zip(image, gt_ids, gt_boxes, heatmap_pred, ids,
                                                                         scores, bboxes):
