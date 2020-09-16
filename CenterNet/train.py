@@ -386,19 +386,19 @@ def run(mean=[0.485, 0.456, 0.406],
                     heatmap_pred, offset_pred, wh_pred = net(image)
                     id, score, bbox = prediction(heatmap_pred, offset_pred, wh_pred)
                     
-                precision_recall.update(pred_bboxes=bbox,
-                                        pred_labels=id,
-                                        pred_scores=score,
-                                        gt_boxes=gt_box * scale_factor,
-                                        gt_labels=gt_id)
+                    precision_recall.update(pred_bboxes=bbox,
+                                            pred_labels=id,
+                                            pred_scores=score,
+                                            gt_boxes=gt_box * scale_factor,
+                                            gt_labels=gt_id)
 
-                heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
-                offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
-                wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
+                    heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
+                    offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
+                    wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
 
-                heatmap_loss_sum += heatmap_loss.item()
-                offset_loss_sum += offset_loss.item()
-                wh_loss_sum += wh_loss.item()
+                    heatmap_loss_sum += heatmap_loss.item()
+                    offset_loss_sum += offset_loss.item()
+                    wh_loss_sum += wh_loss.item()
 
             valid_heatmap_loss_mean = np.divide(heatmap_loss_sum, valid_update_number_per_epoch)
             valid_offset_loss_mean = np.divide(offset_loss_sum, valid_update_number_per_epoch)
