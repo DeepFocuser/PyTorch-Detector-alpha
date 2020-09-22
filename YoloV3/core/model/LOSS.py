@@ -5,23 +5,19 @@ class Yolov3Loss(Module):
 
     def __init__(self, sparse_label = True,
                  from_sigmoid=False,
-                 batch_axis=None,
                  num_classes=5,
                  reduction="sum"):
 
         super(Yolov3Loss, self).__init__()
         self._sparse_label = sparse_label
         self._from_sigmoid = from_sigmoid
-        self._batch_axis = batch_axis
         self._num_classes = num_classes
         self._reduction = reduction.upper()
         self._num_pred = 5 + num_classes
 
         self._sigmoid_ce = SigmoidBinaryCrossEntropyLoss(from_sigmoid=from_sigmoid,
-                                                         batch_axis=batch_axis,
                                                          reduction=reduction)
-        self._l2loss = L2Loss(batch_axis=batch_axis,
-                              reduction=reduction)
+        self._l2loss = L2Loss(reduction=reduction)
 
     def forward(self, output1, output2, output3, xcyc_target, wh_target, objectness, class_target, weights):
 
@@ -62,10 +58,9 @@ class Yolov3Loss(Module):
 
 class L2Loss(Module):
 
-    def __init__(self, batch_axis=0, reduction="sum"):
+    def __init__(self, reduction="sum"):
         super(L2Loss, self).__init__()
 
-        self._batch_axis = batch_axis
         self._reduction = reduction.upper()
 
     def forward(self, pred, label, sample_weight=None):
@@ -81,10 +76,9 @@ class L2Loss(Module):
 
 class SigmoidBinaryCrossEntropyLoss(Module):
 
-    def __init__(self, from_sigmoid=False, batch_axis=0, reduction="sum"):
+    def __init__(self, from_sigmoid=False, reduction="sum"):
         super(SigmoidBinaryCrossEntropyLoss, self).__init__()
         self._from_sigmoid = from_sigmoid
-        self._batch_axis = batch_axis
         self._reduction = reduction.upper()
 
     def forward(self, pred, label, sample_weight=None, pos_weight=None):
