@@ -75,7 +75,7 @@ class L2Loss(Module):
         if self._reduction == "SUM":
             return torch.sum(loss, dim=[1,2]).mean()
         elif self._reduction == "MEAN":
-            return torch.mean(loss, dim=[1,2])
+            return torch.mean(loss, dim=[1,2]).mean()
         else:
             raise NotImplementedError
 
@@ -114,6 +114,6 @@ class SigmoidBinaryCrossEntropyLoss(Module):
         if self._reduction == "SUM":
             return torch.sum(loss, dim=[1,2]).mean()
         elif self._reduction == "MEAN":
-            return torch.mean(loss, dim=[1,2])
+            return torch.mean(loss, dim=[1,2]).mean()
         else:
             raise NotImplementedError
