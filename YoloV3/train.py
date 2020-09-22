@@ -243,7 +243,6 @@ def run(mean=[0.485, 0.456, 0.406],
 
     loss = Yolov3Loss(sparse_label=True,
                       from_sigmoid=False,
-                      batch_axis=None,
                       num_classes=num_classes,
                       reduction="sum")
 
