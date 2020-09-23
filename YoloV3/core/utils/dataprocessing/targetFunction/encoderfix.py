@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(base=18,
+    net = Yolov3(Darknetlayer=53,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
