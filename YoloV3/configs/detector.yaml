@@ -35,6 +35,8 @@ model:
   Darknetlayer: 53 # only 53
   pretrained_base: True
   # weight download 받는 곳 https://drive.google.com/uc?id=1VYwHUznM3jLD7ftmOSCHnpkVpBJcFIOA&export=download
+  # 이 pretrained weight를 사용할시 범위는 0 ~ 1 사이가 되어야 한다. 즉
+  # 아래의 image_mean: [0, 0, 0] / image_std: [1, 1, 1] 이 되어야 함.
   pretrained_path: /home/jg/Desktop/YoloV3/darknet53.pth
 
 hyperparameters:
