@@ -3,6 +3,7 @@ from torch.nn import Module
 
 from core.utils.dataprocessing.predictFunction.decoder import Decoder
 
+
 class Prediction(Module):
 
     def __init__(self,
@@ -172,18 +173,18 @@ if __name__ == "__main__":
     input_size = (608, 608)
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path='/home/jg/Desktop/mountain/valid', transform=transform, sequence_number=1)
+    dataset = DetectionDataset(path=os.path.join(root, 'Dataset', 'valid'), transform=transform)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(base=18,
+    net = Yolov3(Darknetlayer=53,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=num_classes,  # foreground만
-                 pretrained=False,)
+                 pretrained=False)
 
     prediction = Prediction(
         from_sigmoid=False,

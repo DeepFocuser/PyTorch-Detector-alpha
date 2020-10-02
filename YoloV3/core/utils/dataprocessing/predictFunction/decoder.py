@@ -87,19 +87,19 @@ if __name__ == "__main__":
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path='/home/jg/Desktop/mountain/valid', transform=transform)
+    dataset = DetectionDataset(path=os.path.join(root, 'Dataset', 'train'), transform=transform)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(base=18,
+    net = Yolov3(Darknetlayer=53,
                  input_frame_number=1,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=num_classes,  # foreground만
-                 pretrained=False,)
+                 pretrained=False)
 
     net.to(device)
     # batch 형태로 만들기
@@ -108,8 +108,10 @@ if __name__ == "__main__":
 
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
-    output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(
-        image.to(device))
+
+    with torch.no_grad():
+        output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(
+            image.to(device))
 
     results = []
     decoder = Decoder(from_sigmoid=False, num_classes=num_classes, thresh=0.01, multiperclass=False)

@@ -45,18 +45,18 @@ if __name__ == "__main__":
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = YoloTrainTransform(input_size[0], input_size[1])
-    dataset = DetectionDataset(path=os.path.join(root, 'valid'), transform=transform)
+    dataset = DetectionDataset(path=os.path.join(root,'Dataset','valid'), transform=transform)
     num_classes = dataset.num_class
 
     image, label, _ = dataset[0]
 
-    net = Yolov3(base=18,
+    net = Yolov3(Darknetlayer=53,
                  input_size=input_size,
                  anchors={"shallow": [(10, 13), (16, 30), (33, 23)],
                           "middle": [(30, 61), (62, 45), (59, 119)],
                           "deep": [(116, 90), (156, 198), (373, 326)]},
                  num_classes=1,  # foreground만
-                 pretrained=False,)
+                 pretrained=False)
     net.to(device)
     targetgenerator = TargetGenerator(ignore_threshold=0.5, dynamic=True, from_sigmoid=False)
 
@@ -66,7 +66,9 @@ if __name__ == "__main__":
 
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
-    output1, output2, output3, anchor1, anchor2, anchor3, _, _, _, _, _, _ = net(image.to(device))
+
+    with torch.no_grad():
+        output1, output2, output3, anchor1, anchor2, anchor3, _, _, _, _, _, _ = net(image.to(device))
     xcyc_targets, wh_targets, objectness, class_targets, weights = targetgenerator([output1, output2, output3],
                                                                                    [anchor1, anchor2, anchor3],
                                                                                    gt_boxes.to(device),
