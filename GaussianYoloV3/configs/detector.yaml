@@ -56,7 +56,7 @@ hyperparameters:
   batch_interval: 10 # multiscale을 몇 배치마다 할껀지?
   subdivision: 4
   multiscale: False
-  factor_scale: [10, 19] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
+  factor_scale: [10, 9] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
   ignore_threshold: 0.7
   dynamic: False
   data_augmentation: False
