@@ -55,7 +55,7 @@ hyperparameters:
   batch_size: 4
   batch_interval: 10 # multiscale을 몇 배치마다 할껀지?
   subdivision: 1
-  multiscale: False
+  multiscale: True
   factor_scale: [10, 9] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
   ignore_threshold: 0.7
   dynamic: True
@@ -65,7 +65,7 @@ hyperparameters:
   learning_rate: 0.001
   weight_decay: 0.000001
   decay_lr: 0.9
-  decay_step: 1 # 몇 epoch이 지난후 decay_lr을 적용할지
+  decay_step: 10 # 몇 epoch이 지난후 decay_lr을 적용할지
 context:
   using_cuda: True
 validation:
