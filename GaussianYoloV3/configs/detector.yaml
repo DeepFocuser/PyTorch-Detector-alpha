@@ -28,12 +28,12 @@ Dataset:
 model:
   training: True
   load_name: 608_608_ADAM_PDark_53_1frame # training = False,
-  save_period: 1
-  load_period: 1
+  save_period: 10
+  load_period: 100
   input_size: [608, 608] # height, width
   input_frame_number: 1
   Darknetlayer: 53 # only 53
-  pretrained_base: True
+  pretrained_base: False
   # weight download 받는 곳 https://drive.google.com/uc?id=1VYwHUznM3jLD7ftmOSCHnpkVpBJcFIOA&export=download
   # 이 pretrained weight를 사용할시 범위는 0 ~ 1 사이가 되어야 한다. 즉
   # 아래의 image_mean: [0, 0, 0] / image_std: [1, 1, 1] 이 되어야 함.
@@ -50,27 +50,27 @@ hyperparameters:
             "deep": [(116, 90), (156, 198), (373, 326)]}'
 
   # 학습 관련
-  epoch: 300
+  epoch: 100
   batch_log: 100
   batch_size: 4
   batch_interval: 10 # multiscale을 몇 배치마다 할껀지?
-  subdivision: 4
-  multiscale: False
+  subdivision: 1
+  multiscale: True
   factor_scale: [10, 9] # (10 ~ 19)*32 / 직사각형 데이터 학습시 dataloader.py 에가서 multiscale전략을 바꿔야한다.
   ignore_threshold: 0.7
-  dynamic: False
+  dynamic: True
   data_augmentation: False
-  num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.
+  num_workers: 4 # the number of multiprocessing workers to use for data preprocessing.
   optimizer: ADAM # ADAM, RMSPROP, SGD
   learning_rate: 0.001
   weight_decay: 0.000001
   decay_lr: 0.9
-  decay_step: 1 # 몇 epoch이 지난후 decay_lr을 적용할지
+  decay_step: 10 # 몇 epoch이 지난후 decay_lr을 적용할지
 context:
   using_cuda: True
 validation:
-  valid_size: 1
-  eval_period: 1
+  valid_size: 4
+  eval_period: 10
   tensorboard: True
   valid_graph_path: valid_Graph
   valid_html_auto_open: False
