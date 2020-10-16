@@ -16,11 +16,11 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes[0], kernel_size=1,
                                stride=1, padding=0, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes[0])
+        self.bn1 = nn.BatchNorm2d(planes[0], eps=1e-5, momentum=0.9)
         self.relu1 = nn.LeakyReLU(0.1)
         self.conv2 = nn.Conv2d(planes[0], planes[1], kernel_size=3,
                                stride=1, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes[1])
+        self.bn2 = nn.BatchNorm2d(planes[1], eps=1e-5, momentum=0.9)
         self.relu2 = nn.LeakyReLU(0.1)
 
     def forward(self, x):
@@ -43,7 +43,7 @@ class DarkNet53(nn.Module):
         super(DarkNet53, self).__init__()
         self.inplanes = 32
         self.conv1 = nn.Conv2d(input_frame_number*3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.inplanes)
+        self.bn1 = nn.BatchNorm2d(self.inplanes, eps=1e-5, momentum=0.9)
         self.relu1 = nn.LeakyReLU(0.1)
 
         self.layer1 = self._make_layer([32, 64], layers[0])
@@ -67,7 +67,7 @@ class DarkNet53(nn.Module):
         #  downsample
         layers.append(("ds_conv", nn.Conv2d(self.inplanes, planes[1], kernel_size=3,
                                             stride=2, padding=1, bias=False)))
-        layers.append(("ds_bn", nn.BatchNorm2d(planes[1])))
+        layers.append(("ds_bn", nn.BatchNorm2d(planes[1], eps=1e-5, momentum=0.9)))
         layers.append(("ds_relu", nn.LeakyReLU(0.1)))
         #  blocks
         self.inplanes = planes[1]
