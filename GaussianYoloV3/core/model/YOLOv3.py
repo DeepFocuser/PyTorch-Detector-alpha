@@ -103,7 +103,7 @@ class Yolov3(Module):
                               padding=0,
                               bias=True,
                               ))
-        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head1_1.append(LeakyReLU(negative_slope=0.1))
 
         head1_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -111,7 +111,7 @@ class Yolov3(Module):
                               stride=1,
                               padding=1,
                               bias=True))
-        head1_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head1_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head1_1.append(LeakyReLU(negative_slope=0.1))
 
         head1_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
@@ -120,7 +120,7 @@ class Yolov3(Module):
                               padding=0,
                               bias=True,
                               ))
-        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head1_1.append(LeakyReLU(negative_slope=0.1))
 
         head1_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -128,7 +128,7 @@ class Yolov3(Module):
                               stride=1,
                               padding=1,
                               bias=True))
-        head1_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head1_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head1_1.append(LeakyReLU(negative_slope=0.1))
 
         head1_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
@@ -137,7 +137,7 @@ class Yolov3(Module):
                               padding=0,
                               bias=True,
                               ))
-        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head1_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head1_1.append(LeakyReLU(negative_slope=0.1))
 
         head1_2.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -145,7 +145,7 @@ class Yolov3(Module):
                               stride=1,
                               padding=1,
                               bias=True))
-        head1_2.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head1_2.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head1_2.append(LeakyReLU(negative_slope=0.1))
 
         head1_2.append(Conv2d(head_init_num_channel * 2, len(anchors[0]) * self._num_pred,
@@ -163,7 +163,7 @@ class Yolov3(Module):
                               padding=0,
                               bias=True,
                               ))
-        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head2_1.append(LeakyReLU(negative_slope=0.1))
 
         head2_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -171,7 +171,7 @@ class Yolov3(Module):
                               stride=1,
                               padding=1,
                               bias=True))
-        head2_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head2_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head2_1.append(LeakyReLU(negative_slope=0.1))
 
         head2_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
@@ -180,7 +180,7 @@ class Yolov3(Module):
                               padding=0,
                               bias=True,
                               ))
-        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head2_1.append(LeakyReLU(negative_slope=0.1))
 
         head2_1.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -188,7 +188,7 @@ class Yolov3(Module):
                               stride=1,
                               padding=1,
                               bias=True))
-        head2_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head2_1.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head2_1.append(LeakyReLU(negative_slope=0.1))
 
         head2_1.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
@@ -197,7 +197,7 @@ class Yolov3(Module):
                               padding=0,
                               bias=True,
                               ))
-        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head2_1.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head2_1.append(LeakyReLU(negative_slope=0.1))
 
         head2_2.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -205,7 +205,7 @@ class Yolov3(Module):
                               stride=1,
                               padding=1,
                               bias=True))
-        head2_2.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head2_2.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head2_2.append(LeakyReLU(negative_slope=0.1))
 
         head2_2.append(Conv2d(head_init_num_channel * 2, len(anchors[1]) * self._num_pred,
@@ -223,7 +223,7 @@ class Yolov3(Module):
                             padding=0,
                             bias=True,
                             ))
-        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head3.append(LeakyReLU(negative_slope=0.1))
 
         head3.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -231,7 +231,7 @@ class Yolov3(Module):
                             stride=1,
                             padding=1,
                             bias=True))
-        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head3.append(LeakyReLU(negative_slope=0.1))
 
         head3.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
@@ -240,7 +240,7 @@ class Yolov3(Module):
                             padding=0,
                             bias=True,
                             ))
-        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head3.append(LeakyReLU(negative_slope=0.1))
 
         head3.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -248,7 +248,7 @@ class Yolov3(Module):
                             stride=1,
                             padding=1,
                             bias=True))
-        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head3.append(LeakyReLU(negative_slope=0.1))
 
         head3.append(Conv2d(head_init_num_channel * 2, head_init_num_channel,
@@ -257,7 +257,7 @@ class Yolov3(Module):
                             padding=0,
                             bias=True,
                             ))
-        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9))
+        head3.append(BatchNorm2d(head_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         head3.append(LeakyReLU(negative_slope=0.1))
 
         head3.append(Conv2d(head_init_num_channel, head_init_num_channel * 2,
@@ -265,7 +265,7 @@ class Yolov3(Module):
                             stride=1,
                             padding=1,
                             bias=True))
-        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9))
+        head3.append(BatchNorm2d(head_init_num_channel * 2, eps=1e-5, momentum=0.9, track_running_stats=False))
         head3.append(LeakyReLU(negative_slope=0.1))
 
         head3.append(Conv2d(head_init_num_channel * 2, len(anchors[2]) * self._num_pred,
@@ -283,7 +283,7 @@ class Yolov3(Module):
                                   padding=0,
                                   bias=True,
                                   ))
-        transition1.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
+        transition1.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         transition1.append(LeakyReLU(negative_slope=0.1))
 
         trans_init_num_channel = 128
@@ -293,7 +293,7 @@ class Yolov3(Module):
                                   padding=0,
                                   bias=True,
                                   ))
-        transition2.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9))
+        transition2.append(BatchNorm2d(trans_init_num_channel, eps=1e-5, momentum=0.9, track_running_stats=False))
         transition2.append(LeakyReLU(negative_slope=0.1))
 
         for i, anchor, feature, stride in zip(range(len(anchors)), anchors, features, strides):

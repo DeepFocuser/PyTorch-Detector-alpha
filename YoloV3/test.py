@@ -28,8 +28,6 @@ def run(input_frame_number=2,
         test_graph_path="test_Graph",
         test_html_auto_open=False,
         num_workers=4,
-        npy_flag = True,
-        npy_save_path="npy_result",
         show_flag=True,
         save_flag=True,
         video_flag=True,
@@ -115,7 +113,6 @@ def run(input_frame_number=2,
     targetgenerator = TargetGenerator(ignore_threshold=ignore_threshold, dynamic=dynamic, from_sigmoid=False)
     loss = Yolov3Loss(sparse_label=True,
                       from_sigmoid=False,
-                      batch_axis=None,
                       num_classes=num_classes,
                       reduction="sum")
 
@@ -160,7 +157,7 @@ def run(input_frame_number=2,
         label = label.to(device)
         gt_boxes = label[:, :, :4]
         gt_ids = label[:, :, 4:5]
-        
+
         with torch.no_grad():
             output1, output2, output3, \
             anchor1, anchor2, anchor3, \
@@ -179,33 +176,6 @@ def run(input_frame_number=2,
         bboxes = box_resize(bboxes[0].detach().cpu().numpy().copy(), (netwidth, netheight), (width, height))
 
         # 출력
-
-        split_path = name[0].split("/")
-
-        if npy_flag:
-
-            npy_path = os.path.join(npy_save_path, split_path[-3], split_path[-2])
-            if not os.path.exists(npy_path):
-                os.makedirs(npy_path)
-
-            ids_npy = ids.detach().cpu().numpy().copy()[0]  # (22743, 1)
-            except_ids_index = np.where(ids_npy != -1)
-            scores_npy = scores.detach().cpu().numpy().copy()[0][except_ids_index]
-            scores_npy = np.expand_dims(scores_npy, axis=-1)
-
-            xmin, ymin, xmax, ymax = np.split(bboxes, 4, axis=-1)
-
-            xmin = xmin[except_ids_index]
-            ymin = ymin[except_ids_index]
-            xmax = xmax[except_ids_index]
-            ymax = ymax[except_ids_index]
-            bboxes_npy = np.stack([xmin, ymin, xmax, ymax], axis=-1)
-
-            # 순서 scores, bboxes - 마지막 축으로 concat
-            scorebox = np.concatenate([scores_npy, bboxes_npy], axis=-1)
-            result_name = split_path[-1].replace(".jpg", ".npy")
-            np.save(os.path.join(npy_path, result_name), scorebox)
-
         for pair_ig in origin_img:
             split_ig = torch.split(pair_ig, 3, dim=-1)
 
@@ -230,10 +200,9 @@ def run(input_frame_number=2,
             hconcat_images = np.concatenate(hconcat_image_list, axis=1)
 
         if save_flag:
-            image_save_path = os.path.join(test_save_path, split_path[-3], split_path[-2])
-            if not os.path.exists(image_save_path):
-                os.makedirs(image_save_path)
-            cv2.imwrite(os.path.join(image_save_path, split_path[-1]), hconcat_images)
+            if not os.path.exists(test_save_path):
+                os.makedirs(test_save_path)
+            cv2.imwrite(os.path.join(test_save_path, os.path.basename(name[0])), hconcat_images)
         if show_flag:
             logging.info(f"image name : {os.path.splitext(os.path.basename(name[0]))[0]}")
             cv2.imshow("temp", hconcat_images)
@@ -297,11 +266,9 @@ if __name__ == "__main__":
         test_weight_path="weights",
         test_dataset_path="Dataset/test",
         test_save_path="result",
-        npy_save_path = "npy_result",
         test_graph_path="test_Graph",
         test_html_auto_open=True,
         num_workers=4,
-        npy_flag = True,
         show_flag=True,
         save_flag=True,
         video_flag=True,

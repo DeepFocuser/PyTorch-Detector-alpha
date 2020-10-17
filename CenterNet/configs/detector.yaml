@@ -8,8 +8,6 @@ Dataset:
   save_flag: True
   save_path: result
   show_flag: False
-  npy_flag: True
-  npy_save_path: npy_result
   video_flag: True
   video_min: None
   video_max: None

@@ -44,11 +44,7 @@ class DetectionDataset(Dataset):
                 image_path = self._image_path_List[i:i + self._sequence_number]
                 xml_path = image_path[-1].replace(".jpg", ".xml")
                 self._items.append((image_path, xml_path))
-
-                # 이름 저장
-                base_image = os.path.basename(image_path[-1])
-                name = os.path.splitext(base_image)[0]
-                self._itemname.append(name)
+                self._itemname.append(image_path[-1])
         else:
             logging.info("The dataset does not exist")
 
