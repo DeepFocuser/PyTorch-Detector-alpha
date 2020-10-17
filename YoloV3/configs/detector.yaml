@@ -24,7 +24,7 @@ Dataset:
 
 
 model:
-  training: False
+  training: True
   load_name: 416_416_ADAM_Dark_53_1frame # training = False,
   save_period: 10
   load_period: 80
