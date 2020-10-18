@@ -74,7 +74,7 @@ validation:
   valid_html_auto_open: False
 mlflow:
   using_mlflow: True
-  run_name: licence
+  run_name: animals
 
 
 
