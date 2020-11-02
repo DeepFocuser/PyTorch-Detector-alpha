@@ -14,7 +14,7 @@ if os.path.isfile(logfilepath):
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 # test시 nms 통과후 적용
-def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
+def plot_bbox(img, bboxes, landmark=None, scores=None, labels=None, thresh=0.5,
               class_names=None, colors=None, reverse_rgb=False, absolute_coordinates=True,
               image_show=False, image_save=False, image_save_path=None, image_name=None, heatmap=None):
 
@@ -46,6 +46,8 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
     else:
         if isinstance(bboxes, torch.Tensor):
             bboxes = bboxes.detach().cpu().numpy().copy()
+        if isinstance(landmark, torch.Tensor):
+            landmark = landmark.detach().cpu().numpy().copy()
         if isinstance(labels, torch.Tensor):
             labels = labels.detach().cpu().numpy().copy()
         if isinstance(scores, torch.Tensor):
@@ -96,6 +98,13 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
             except Exception as E:
                 logging.info(E)
 
+            # landmark 그리기
+            try:
+                for j in range(0, len(landmark[i]), 2):
+                    cv2.line(img, tuple(landmark[i][j:j+2]), tuple(landmark[i][j:j+2]), (0, 255, 0), thickness=3)
+            except Exception as E:
+                logging.info(E)
+
             if class_names is not None and cls_id < len(class_names):
                 class_name = class_names[cls_id]
             else:
@@ -106,13 +115,15 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
             if class_name or score:
                 cv2.putText(copied_img,
                             text='{} {}'.format(class_name, score), \
-                            org=(xmin + 7, ymin + 20), \
+                            org=(xmin , ymin - 7), \
                             fontFace=cv2.FONT_HERSHEY_SIMPLEX, \
-                            fontScale=0.7, \
-                            color=[0, 0, 0], \
-                            thickness=2, bottomLeftOrigin=False)
+                            fontScale=0.5, \
+                            color=[21, 21, 255], \
+                            thickness=1, bottomLeftOrigin=False)
 
-        result = cv2.addWeighted(img, 0.5, copied_img, 0.5, 0)
+
+
+        result = cv2.addWeighted(img, 0.3, copied_img, 0.7, 0)
 
         if heatmap is not None:
             result = np.concatenate([result, heatmap], axis=1)
@@ -126,7 +137,7 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
 
 class PrePostNet(nn.Module):
 
-    def __init__(self, net=None, auxnet=None, input_frame_number=2):
+    def __init__(self, net=None, auxnet=None, input_frame_number=1):
         super(PrePostNet, self).__init__()
 
         self._mean = torch.as_tensor([123.675, 116.28, 103.53]*input_frame_number).reshape((1, 1, 1, 3*input_frame_number))
@@ -138,5 +149,5 @@ class PrePostNet(nn.Module):
         x = torch.sub(x, self._mean.to(x.device))
         x = torch.div(x, self._scale.to(x.device))
         x = x.permute(0, 3, 1, 2)
-        heatmap_pred, offset_pred, wh_pred = self._net(x)
-        return self._auxnet(heatmap_pred, offset_pred, wh_pred)
+        heatmap_pred, offset_pred, wh_pred, landmark_pred = self._net(x)
+        return self._auxnet(heatmap_pred, offset_pred, wh_pred, landmark_pred)

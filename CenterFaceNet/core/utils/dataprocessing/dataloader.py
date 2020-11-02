@@ -108,6 +108,7 @@ def traindataloader(augmentation=True, path="Dataset/train",
                          Stack(),
                          Stack(),
                          Stack(),
+                         Stack(),
                          Stack()),
         pin_memory=pin_memory,
         drop_last=False,
@@ -116,7 +117,7 @@ def traindataloader(augmentation=True, path="Dataset/train",
     return dataloader, dataset
 
 
-def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_number=2,
+def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_number=1,
                     batch_size=1, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],
                     scale_factor=4, make_target=True):
 
@@ -132,6 +133,7 @@ def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_num
         shuffle=shuffle,
         collate_fn=Tuple(Stack(),
                          Pad(pad_val=-1),
+                         Stack(),
                          Stack(),
                          Stack(),
                          Stack(),
@@ -176,20 +178,20 @@ if __name__ == "__main__":
     which enables fast data transfer to CUDA-enabled GPUs.
     '''
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataloader, dataset = validdataloader(path=os.path.join(root, "valid"), input_size=(512, 512),
-                                          batch_size=8, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
+    dataloader, dataset = validdataloader(path=os.path.join(root, 'Dataset', "valid"), input_size=(512, 512),
+                                          batch_size=4, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
                                           std=[0.229, 0.224, 0.225])
 
     # for문 돌리기 싫으므로, iterator로 만든
     dataloader_iter = iter(dataloader)
-    data, label, _, _, _, _, name = next(dataloader_iter)
+    data, label, _, _, _, _, _, _, name = next(dataloader_iter)
 
     print(f"images shape : {data.shape}")
     print(f"labels shape : {label.shape}")
     print(f"name : {name}")
 
     '''
-    images shape : torch.Size([8, 6, 512, 512])
-    labels shape : torch.Size([8, 1, 5])
-    name : ['C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00001468.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000286.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000057.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000024.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00001313.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000889.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000152.jpg', 'C:\\Users\\JG\\Desktop\\nframeCenter_torch\\valid\\images\\valid\\Babbitt_170912_1700\\youtube_726_00000787.jpg']
+    images shape : torch.Size([4, 3, 512, 512])
+    labels shape : torch.Size([4, 9, 15])
+    name : ['1_Handshaking_Handshaking_1_313', '13_Interview_Interview_Sequences_13_40', '4_Dancing_Dancing_4_253', '56_Voter_peoplevoting_56_819']
     '''

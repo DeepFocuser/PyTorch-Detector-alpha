@@ -245,19 +245,20 @@ def run(mean=[0.485, 0.456, 0.406],
         logging.info(f"subdivision 을 다시 설정하고 학습 진행하세요.")
         exit(0)
 
-
     start_time = time.time()
     for i in tqdm(range(start_epoch + 1, epoch + 1, 1), initial=start_epoch + 1, total=epoch):
 
         heatmap_loss_sum = 0
         offset_loss_sum = 0
         wh_loss_sum = 0
+        landmark_loss_sum = 0
         time_stamp = time.time()
 
         # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
-        for batch_count, (image, _, heatmap_target, offset_target, wh_target, landmark_target, mask_target, _) in enumerate(
-                train_dataloader,
-                start=1):
+        for batch_count, (
+                image, _, heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target, _) in enumerate(
+            train_dataloader,
+            start=1):
 
             trainer.zero_grad()
 
@@ -272,25 +273,32 @@ def run(mean=[0.485, 0.456, 0.406],
             heatmap_target = heatmap_target.to(context)
             offset_target = offset_target.to(context)
             wh_target = wh_target.to(context)
+            landmark_target = landmark_target.to(context)
             mask_target = mask_target.to(context)
+            landmark_mask_target = landmark_mask_target.to(context)
 
             image_split = torch.split(image, chunk, dim=0)
             heatmap_target_split = torch.split(heatmap_target, chunk, dim=0)
             offset_target_split = torch.split(offset_target, chunk, dim=0)
             wh_target_split = torch.split(wh_target, chunk, dim=0)
+            landmark_target_split = torch.split(landmark_target, chunk, dim=0)
             mask_target_split = torch.split(mask_target, chunk, dim=0)
+            landmark_mask_target_split = torch.split(landmark_mask_target, chunk, dim=0)
 
             heatmap_losses = []
             offset_losses = []
             wh_losses = []
+            landmark_losses = []
             total_loss = 0.0
 
-            for image_part, heatmap_target_part, offset_target_part, wh_target_part, mask_target_part in zip(
+            for image_part, heatmap_target_part, offset_target_part, wh_target_part, landmark_target_part, mask_target_part, landmark_mask_target_part in zip(
                     image_split,
                     heatmap_target_split,
                     offset_target_split,
                     wh_target_split,
-                    mask_target_split):
+                    landmark_target_split,
+                    mask_target_split,
+                    landmark_mask_target_split):
                 heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
                 '''
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
@@ -300,12 +308,15 @@ def run(mean=[0.485, 0.456, 0.406],
                 offset_loss = torch.div(normedl1loss(offset_pred, offset_target_part, mask_target_part) * lambda_off,
                                         subdivision)
                 wh_loss = torch.div(normedl1loss(wh_pred, wh_target_part, mask_target_part) * lambda_size, subdivision)
+                landmark_loss = torch.div(normedl1loss(landmark_pred, landmark_target_part, landmark_mask_target_part) * lambda_landmark,
+                                          subdivision)
 
                 heatmap_losses.append(heatmap_loss.item())
                 offset_losses.append(offset_loss.item())
                 wh_losses.append(wh_loss.item())
+                landmark_losses.append(landmark_loss.item())
 
-                total_loss = total_loss + (heatmap_loss + offset_loss + wh_loss)
+                total_loss = total_loss + (heatmap_loss + offset_loss + wh_loss + landmark_loss)
 
             total_loss.backward()
             trainer.step()
@@ -314,23 +325,30 @@ def run(mean=[0.485, 0.456, 0.406],
             heatmap_loss_sum += sum(heatmap_losses)
             offset_loss_sum += sum(offset_losses)
             wh_loss_sum += sum(wh_losses)
+            landmark_loss_sum += sum(landmark_losses)
 
             if batch_count % batch_log == 0:
-                logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}],'
-                             f'[Speed {image.shape[0] / (time.time() - time_stamp):.3f} samples/sec],'
+                logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}]'
+                             f'[Speed {image.shape[0] / (time.time() - time_stamp):.3f} samples/sec]'
                              f'[Lr = {lr_sch.get_last_lr()}]'
                              f'[heatmap loss = {sum(heatmap_losses):.3f}]'
                              f'[offset loss = {sum(offset_losses):.3f}]'
-                             f'[wh loss = {sum(wh_losses):.3f}]')
+                             f'[wh loss = {sum(wh_losses):.3f}]'
+                             f'[landmark loss = {sum(landmark_losses):.3f}')
             time_stamp = time.time()
 
         train_heatmap_loss_mean = np.divide(heatmap_loss_sum, train_update_number_per_epoch)
         train_offset_loss_mean = np.divide(offset_loss_sum, train_update_number_per_epoch)
         train_wh_loss_mean = np.divide(wh_loss_sum, train_update_number_per_epoch)
-        train_total_loss_mean = train_heatmap_loss_mean + train_offset_loss_mean + train_wh_loss_mean
+        train_landmark_loss_mean = np.divide(landmark_loss_sum, train_update_number_per_epoch)
+        train_total_loss_mean = train_heatmap_loss_mean + train_offset_loss_mean + train_wh_loss_mean + train_landmark_loss_mean
 
         logging.info(
-            f"train heatmap loss : {train_heatmap_loss_mean} / train offset loss : {train_offset_loss_mean} / train wh loss : {train_wh_loss_mean} / train total loss : {train_total_loss_mean}")
+            f"train heatmap loss : {train_heatmap_loss_mean} / "
+            f"train offset loss : {train_offset_loss_mean} / "
+            f"train wh loss : {train_wh_loss_mean} / "
+            f"train landmark loss : {train_landmark_loss_mean} / "
+            f"train total loss : {train_total_loss_mean}")
 
         if i % save_period == 0:
 
@@ -338,7 +356,8 @@ def run(mean=[0.485, 0.456, 0.406],
                 os.makedirs(weight_path)
 
             module = net.module if isinstance(device, (list, tuple)) else net
-            auxnet = Prediction(unique_ids=name_classes, topk=topk, scale=scale_factor, nms=nms, except_class_thresh=except_class_thresh,
+            auxnet = Prediction(unique_ids=name_classes, topk=topk, scale=scale_factor, nms=nms,
+                                except_class_thresh=except_class_thresh,
                                 nms_thresh=nms_thresh)
             prepostnet = PrePostNet(net=module, auxnet=auxnet, input_frame_number=input_frame_number)  # 새로운 객체가 생성
 
@@ -370,9 +389,10 @@ def run(mean=[0.485, 0.456, 0.406],
             heatmap_loss_sum = 0
             offset_loss_sum = 0
             wh_loss_sum = 0
+            landmark_loss_sum = 0
 
             # loss 구하기
-            for image, label, heatmap_target, offset_target, wh_target, landmark_target, mask_target, _ in valid_dataloader:
+            for image, label, heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target, _ in valid_dataloader:
                 image = image.to(context)
                 label = label.to(context)
                 gt_box = label[:, :, :4]
@@ -381,11 +401,13 @@ def run(mean=[0.485, 0.456, 0.406],
                 heatmap_target = heatmap_target.to(context)
                 offset_target = offset_target.to(context)
                 wh_target = wh_target.to(context)
+                landmark_target = landmark_target.to(context)
                 mask_target = mask_target.to(context)
+                landmark_mask_target = landmark_mask_target.to(context)
 
                 with torch.no_grad():
                     heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
-                    id, score, bbox = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
+                    id, score, bbox, _ = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
 
                     precision_recall.update(pred_bboxes=bbox,
                                             pred_labels=id,
@@ -396,18 +418,25 @@ def run(mean=[0.485, 0.456, 0.406],
                     heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
                     offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
                     wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
+                    landmark_loss = normedl1loss(landmark_pred, landmark_target, landmark_mask_target) * lambda_landmark
 
                     heatmap_loss_sum += heatmap_loss.item()
                     offset_loss_sum += offset_loss.item()
                     wh_loss_sum += wh_loss.item()
+                    landmark_loss_sum += landmark_loss.item()
 
             valid_heatmap_loss_mean = np.divide(heatmap_loss_sum, valid_update_number_per_epoch)
             valid_offset_loss_mean = np.divide(offset_loss_sum, valid_update_number_per_epoch)
             valid_wh_loss_mean = np.divide(wh_loss_sum, valid_update_number_per_epoch)
-            valid_total_loss_mean = valid_heatmap_loss_mean + valid_offset_loss_mean + valid_wh_loss_mean
+            valid_landmark_loss_mean = np.divide(wh_loss_sum, valid_update_number_per_epoch)
+            valid_total_loss_mean = valid_heatmap_loss_mean + valid_offset_loss_mean + valid_wh_loss_mean + valid_landmark_loss_mean
 
             logging.info(
-                f"valid heatmap loss : {valid_heatmap_loss_mean} / valid offset loss : {valid_offset_loss_mean} / valid wh loss : {valid_wh_loss_mean} / valid total loss : {valid_total_loss_mean}")
+                f"valid heatmap loss : {valid_heatmap_loss_mean} / "
+                f"valid offset loss : {valid_offset_loss_mean} / "
+                f"valid wh loss : {valid_wh_loss_mean} / "
+                f"valid landmark loss : {valid_landmark_loss_mean} / "
+                f"valid total loss : {valid_total_loss_mean}")
 
             AP_appender = []
             round_position = 2
@@ -432,29 +461,31 @@ def run(mean=[0.485, 0.456, 0.406],
                 batch_image = []
                 ground_truth_colors = {}
                 for k in range(num_classes):
-                    ground_truth_colors[k] = (0, 1, 0) # RGB
+                    ground_truth_colors[k] = (0, 1, 0)  # RGB
 
                 dataloader_iter = iter(valid_dataloader)
-                image, label, _, _, _, _, _, _ = next(dataloader_iter)
+                image, label, _, _, _, _, _, _, _ = next(dataloader_iter)
 
                 image = image.to(context)
                 label = label.to(context)
                 gt_boxes = label[:, :, :4]
                 gt_ids = label[:, :, 4:5]
+                gt_landmarks = label[:, :, 5:]
 
                 with torch.no_grad():
                     heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
-                    ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
+                    ids, scores, bboxes, landmarks = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
 
-                for img, gt_id, gt_box, heatmap, id, score, bbox in zip(image, gt_ids, gt_boxes, heatmap_pred, ids,
-                                                                        scores, bboxes):
+                for img, gt_id, gt_box, gt_landmark, heatmap, id, score, bbox, landmark in zip(image, gt_ids, gt_boxes, gt_landmarks, heatmap_pred, ids,
+                                                                                               scores, bboxes, landmarks):
 
-                    split_img = torch.split(img, 3, dim=0) # numpy split과 다르네...
+                    split_img = torch.split(img, 3, dim=0)  # numpy split과 다르네...
                     hconcat_image_list = []
 
                     for j, ig in enumerate(split_img):
 
-                        ig = ig.permute((1, 2, 0)) * torch.tensor(std, device=ig.device) + torch.tensor(mean, device=ig.device)
+                        ig = ig.permute((1, 2, 0)) * torch.tensor(std, device=ig.device) + torch.tensor(mean,
+                                                                                                        device=ig.device)
                         ig = (ig * 255).clamp(0, 255)
                         ig = ig.to(torch.uint8)
                         ig = ig.detach().cpu().numpy().copy()
@@ -472,13 +503,13 @@ def run(mean=[0.485, 0.456, 0.406],
                             heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
                             # ground truth box 그리기
-                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, labels=gt_id, thresh=None,
+                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, landmark=gt_landmark, labels=gt_id, thresh=None,
                                                      reverse_rgb=False,
                                                      class_names=valid_dataset.classes,
                                                      absolute_coordinates=True,
                                                      colors=ground_truth_colors)
                             # # prediction box 그리기
-                            prediction_box = plot_bbox(ground_truth, bbox, scores=score, labels=id,
+                            prediction_box = plot_bbox(ground_truth, bbox, scores=score, landmark=landmark, labels=id,
                                                        thresh=plot_class_thresh,
                                                        reverse_rgb=False,
                                                        class_names=valid_dataset.classes,
@@ -519,10 +550,10 @@ def run(mean=[0.485, 0.456, 0.406],
                                    global_step=i)
 
                 summary.add_scalar(tag="total_loss/train_total_loss",
-                                   scalar_value = train_total_loss_mean,
+                                   scalar_value=train_total_loss_mean,
                                    global_step=i)
                 summary.add_scalar(tag="total_loss/valid_total_loss",
-                                   scalar_value = valid_total_loss_mean,
+                                   scalar_value=valid_total_loss_mean,
                                    global_step=i)
 
                 for name, param in net.named_parameters():

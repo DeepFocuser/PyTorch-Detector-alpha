@@ -10,7 +10,7 @@ from tqdm import tqdm
 from core import HeatmapFocalLoss, NormedL1Loss
 from core import TargetGenerator, Prediction
 from core import Voc_2007_AP
-from core import plot_bbox, box_resize
+from core import plot_bbox, box_resize, landmark_resize
 from core import testdataloader
 
 logfilepath = ""  # 따로 지정하지 않으면 terminal에 뜸
@@ -31,6 +31,7 @@ def run(input_frame_number=2,
         test_html_auto_open=False,
         lambda_off=1,
         lambda_size=0.1,
+        lambda_landmark=0.1,
         num_workers=4,
         show_flag=True,
         save_flag=True,
@@ -128,6 +129,7 @@ def run(input_frame_number=2,
     heatmap_loss_sum = 0
     offset_loss_sum = 0
     wh_loss_sum = 0
+    landmark_loss_sum = 0
 
     if video_flag:
         if not os.path.exists(test_save_path):
@@ -151,10 +153,11 @@ def run(input_frame_number=2,
         label = label.to(device)
         gt_boxes = label[:, :, :4]
         gt_ids = label[:, :, 4:5]
+        gt_landmarks = label[:, :, 5:]
 
         with torch.no_grad():
             heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
-            ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
+            ids, scores, bboxes, landmarks = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
 
         precision_recall.update(pred_bboxes=bboxes,
                                 pred_labels=ids,
@@ -172,6 +175,7 @@ def run(input_frame_number=2,
 
         # heatmap, image add하기
         bboxes = box_resize(bboxes[0].detach().cpu().numpy().copy(), (netwidth, netheight), (width, height))
+        landmarks = landmark_resize(landmarks[0].detach().cpu().numpy().copy(), (netwidth, netheight), (width, height))
 
         for pair_ig in origin_image:
             split_ig = torch.split(pair_ig, 3, dim=-1)
@@ -179,11 +183,11 @@ def run(input_frame_number=2,
             hconcat_image_list = []
             for j, ig in enumerate(split_ig):
                 if j == len(split_ig) - 1:  # 마지막 이미지
-                    ground_truth = plot_bbox(ig, origin_box[0][:, :4], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
+                    ground_truth = plot_bbox(ig, origin_box[0][:, :4], landmarks=origin_box[0][:, 5:], scores=None, labels=origin_box[0][:, 4:5], thresh=None,
                                              reverse_rgb=True,
                                              class_names=test_dataset.classes, absolute_coordinates=True,
                                              colors=ground_truth_colors)
-                    prediction_box = plot_bbox(ground_truth, bboxes, scores=scores[0], labels=ids[0],
+                    prediction_box = plot_bbox(ground_truth, bboxes, landmarks=landmarks, scores=scores[0], labels=ids[0],
                                                thresh=plot_class_thresh,
                                                reverse_rgb=False,
                                                class_names=test_dataset.classes, absolute_coordinates=True, heatmap=heatmap)
@@ -210,26 +214,33 @@ def run(input_frame_number=2,
             if i >= video_min and i <= video_max:
                 out.write(hconcat_images)
 
-        heatmap_target, offset_target, wh_target, mask_target = targetgenerator(gt_boxes, gt_ids,
-                                                                                netwidth // scale_factor,
-                                                                                netheight // scale_factor,
-                                                                                image.device)
+        heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
+                                                                                                                       netwidth // scale_factor,
+                                                                                                                       netheight // scale_factor,
+                                                                                                                       image.device)
         heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
         offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
         wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
+        landmark_loss = normedl1loss(landmark_pred, landmark_target, landmark_mask_target) * lambda_landmark
 
         heatmap_loss_sum += heatmap_loss.item()
         offset_loss_sum += offset_loss.item()
         wh_loss_sum += wh_loss.item()
+        landmark_loss_sum += landmark_loss.item()
 
     # epoch 당 평균 loss
     test_heatmap_loss_mean = np.divide(heatmap_loss_sum, test_update_number_per_epoch)
     test_offset_loss_mean = np.divide(offset_loss_sum, test_update_number_per_epoch)
     test_wh_loss_mean = np.divide(wh_loss_sum, test_update_number_per_epoch)
-    test_total_loss_mean = test_heatmap_loss_mean + test_offset_loss_mean + test_wh_loss_mean
+    test_landmark_loss_mean = np.divide(landmark_loss_sum, test_update_number_per_epoch)
+    test_total_loss_mean = test_heatmap_loss_mean + test_offset_loss_mean + test_wh_loss_mean + test_landmark_loss_mean
 
     logging.info(
-        f"test heatmap loss : {test_heatmap_loss_mean} / test offset loss : {test_offset_loss_mean} / test wh loss : {test_wh_loss_mean} / test total loss : {test_total_loss_mean}")
+        f"test heatmap loss : {test_heatmap_loss_mean} /"
+        f" test offset loss : {test_offset_loss_mean} / "
+        f"test wh loss : {test_wh_loss_mean} / "
+        f"test landmark loss : {test_landmark_loss_mean} / "
+        f"test total loss : {test_total_loss_mean}")
 
     AP_appender = []
     round_position = 2

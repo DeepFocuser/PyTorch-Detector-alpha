@@ -23,7 +23,7 @@ class Prediction(nn.Module):
         :param ids: (object number, 1)
         :param scores: (object number, 1)
         :param bboxes: (object number, 4)
-        :return: ids, scores, bboxes
+        :return: ids, scores, bboxes, landmarks
         '''
 
         if ids.shape[0] == 1:
@@ -78,9 +78,9 @@ class Prediction(nn.Module):
         ymax = torch.where(ymax<0, torch.ones_like(ymax)*-1, ymax)
         bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
 
-        return ids, scores, bboxes
+        return ids, scores, bboxes, landmarks
 
-    def forward(self, heatmap, offset, wh):
+    def forward(self, heatmap, offset, wh, landmark):
         '''
         The peak keypoint extraction serves
         as a sufficient NMS alternative and can be implemented efficiently on device using a 3 × 3 max pooling operation.
@@ -186,9 +186,9 @@ class Prediction(nn.Module):
                 scores = torch.stack(scores_list, dim=0)
                 bboxes = torch.stack(bboxes_list, dim=0)
 
-            return ids, scores, bboxes * self._scale
+            return ids, scores, bboxes * self._scale, landmarks * self._scale
         else:
-            return ids, scores, bboxes * self._scale
+            return ids, scores, bboxes * self._scale, landmarks * self._scale
 
 # test
 if __name__ == "__main__":
@@ -209,7 +209,7 @@ if __name__ == "__main__":
     destabilizing loss value in the first iteration of training
     '''
     net = CenterNet(base=18,
-                    input_frame_number=2,
+                    input_frame_number=1,
                     heads=OrderedDict([
                         ('heatmap', {'num_output': 1, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
@@ -219,17 +219,21 @@ if __name__ == "__main__":
                     pretrained=False)
 
 
-    prediction = Prediction(unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.1, nms_thresh=0.5)
-    heatmap, offset, wh = net(torch.rand(2, 6, input_size[0], input_size[1]))
-    ids, scores, bboxes = prediction(heatmap, offset, wh)
+    prediction = Prediction(unique_ids=["faces"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.1, nms_thresh=0.5)
+
+    with torch.no_grad():
+        heatmap, offset, wh, landmark = net(torch.rand(1, 3, input_size[0], input_size[1]))
+        ids, scores, bboxes, landmarks = prediction(heatmap, offset, wh, landmark)
 
     print(f"< input size(height, width) : {input_size} >")
     print(f"topk class id shape : {ids.shape}")
     print(f"topk class scores shape : {scores.shape}")
     print(f"topk box predictions shape : {bboxes.shape}")
+    print(f"topk landmarks predictions shape : {landmarks.shape}")
     '''
     < input size(height, width) : (512, 512) >
     topk class id shape : torch.Size([1, 100, 1])
     topk class scores shape : torch.Size([1, 100, 1])
     topk box predictions shape : torch.Size([1, 100, 4])
+    topk landmark predictions shape : torch.Size([1, 100, 2])
     '''

@@ -1,7 +1,6 @@
-import glob
 import logging
 import os
-from xml.etree.ElementTree import parse
+from collections import defaultdict
 
 import cv2
 import numpy as np
@@ -22,7 +21,7 @@ class DetectionDataset(Dataset):
         Path to input image directory.
     transform : object
     """
-    CLASSES = ['reminds']
+    CLASSES = ['faces']
 
     def __init__(self, path='Dataset/train', transform=None, sequence_number=1):
         super(DetectionDataset, self).__init__()
@@ -32,7 +31,10 @@ class DetectionDataset(Dataset):
 
         self._name = os.path.basename(path)
         self._sequence_number = sequence_number
-        self._image_path_List = sorted(glob.glob(os.path.join(path, "*.jpg")), key=lambda path: self.key_func(path))
+
+        self._image_path = os.path.join(path, "images")
+        self._label_txt = os.path.join(self._image_path.replace("images", "labels"), "label.txt")
+
         self._transform = transform
         self._items = []
         self._itemname = []
@@ -43,14 +45,31 @@ class DetectionDataset(Dataset):
 
     def _make_item_list(self):
 
-        if self._image_path_List:
-            for i in range(len(self._image_path_List) - (self._sequence_number - 1)):
-                image_path = self._image_path_List[i:i + self._sequence_number]
-                xml_path = image_path[-1].replace(".jpg", ".xml")
-                self._items.append((image_path, xml_path))
+        if os.path.exists(self._label_txt):
+
+            image_path_list = []
+            label_dict = defaultdict(list)
+
+            with open(self._label_txt, mode='r') as f:
+                lines = f.readlines()
+                count = -1
+                for line in lines:
+                    if line[0] == "#":
+                        line = line.lstrip("# ") # #+공백 제거
+                        line = line.strip("\n")
+                        line = os.path.join(self._image_path, line)
+
+                        image_path_list.append(line)
+                        count += 1
+                    else:
+                        line = line.strip("\n")
+                        label_dict[count].append(line)
+
+            for i, image_path in enumerate(image_path_list):
+                self._items.append(([image_path], label_dict[i]))
 
                 # 이름 저장
-                base_image = os.path.basename(image_path[-1])
+                base_image = os.path.basename(image_path)
                 name = os.path.splitext(base_image)[0]
                 self._itemname.append(name)
         else:
@@ -59,15 +78,15 @@ class DetectionDataset(Dataset):
     def __getitem__(self, idx):
 
         images = []
-        image_sequence_path, label_path = self._items[idx]
+        image_sequence_path, label_string = self._items[idx]
         for image_path in image_sequence_path:
             image = cv2.imread(image_path, flags=-1)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             images.append(image)
         images = np.concatenate(images, axis=-1)
-
         origin_images = images.copy()
-        label = self._parsing(label_path)  # dtype을 float 으로 해야 아래 단계에서 편하다
+
+        label = self._parsing(label_string)
         origin_label = label.copy()
 
         if self._transform:
@@ -76,54 +95,35 @@ class DetectionDataset(Dataset):
                 return result[0], result[1], result[2], torch.as_tensor(origin_images), torch.as_tensor(origin_label)
             else:
                 return result[0], result[1], result[2], result[3], result[4], result[5], result[
-                    6], result[7]
+                    6], result[7], result[8]
         else:
             return images, label, self._itemname[idx]
 
-    def _parsing(self, path):
-        xml_list = []
-        try:
-            tree = parse(path)
-            root = tree.getroot()
-            object = root.findall("object")
-            for ob in object:
-                if ob.find("bndbox") != None:
-                    bndbox = ob.find("bndbox")
-                    xmin, ymin, xmax, ymax = [int(pos.text) for i, pos in enumerate(bndbox.iter()) if i > 0]
+    def _parsing(self, label_string):
 
-                    # or
-                    # xmin = int(bndbox.findtext("xmin"))
-                    # ymin = int(bndbox.findtext("ymin"))
-                    # xmax = int(bndbox.findtext("xmax"))
-                    # ymax = int(bndbox.findtext("ymax"))
+        label_list = []
+        if label_string:
+            for label in label_string:
+                label = label.split(" ")
 
-                    select = ob.findtext("name")
-                    if select == "reminds":
-                        classes = 0
-                    # elif select == "otter":
-                    #     classes = 1
-                    # elif select == "panda":
-                    #     classes = 2
-                    # elif select == "raccoon":
-                    #     classes = 3
-                    # elif select == "pomeranian":
-                    #     classes = 4
-                    else:
-                        xmin, ymin, xmax, ymax, classes = -1, -1, -1, -1, -1
-                    xml_list.append((xmin, ymin, xmax, ymax, classes))
-                else:
-                    '''
-                        image만 있고 labeling 없는 데이터에 대비 하기 위함 - ssd, retinanet loss에는 아무런 영향이 없음.
-                        yolo 대비용임
-                    '''
-                    print(f"only image : {path}")
-                    xml_list.append((-1, -1, -1, -1, -1))
-
-        except Exception:
-            xml_list.append((-1, -1, -1, -1, -1))
-            return np.array(xml_list, dtype="float32")  # 반드시 numpy여야함.
+                # train
+                if len(label) > 4:
+                    label = label[:-2]
+                    label = [float(lb) for lb in label]
+                    del label[6]
+                    del label[8]
+                    del label[10]
+                    del label[12]
+                else: # valid
+                    label = [float(lb) for lb in label]
+                    label = label + [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
+                label.insert(4, 0) # face 클래스
+                label[2] = label[0] + label[2]
+                label[3] = label[1] + label[3]
+                label_list.append(label)
         else:
-            return np.array(xml_list, dtype="float32")  # 반드시 numpy여야함.
+            label_list.append((-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1))
+        return np.array(label_list, dtype="float32")  # 반드시 numpy여야함.
 
     @property
     def classes(self):
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         sequence_image = sequence_image[:,:,3*(sequence_number-1):]
         file_name = file_name[-1]
 
-    plot_bbox(sequence_image, label[:, :4],
+    plot_bbox(sequence_image, label[:, :4], landmark=label[:, 5:],
               scores=None, labels=label[:, 4:5],
               class_names=dataset.classes, colors=None, reverse_rgb=True, absolute_coordinates=True,
               image_show=True, image_save=False, image_save_path="result", image_name=os.path.basename(file_name))

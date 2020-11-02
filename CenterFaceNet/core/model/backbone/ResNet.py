@@ -309,9 +309,13 @@ if __name__ == "__main__":
     input_size = (512, 512)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    net = get_resnet(50, pretrained=False, input_frame_number=2)
+
+    net = get_resnet(18, pretrained=False, input_frame_number=1)
     net.to(device)
-    output = net(torch.rand(1, 6, input_size[0],input_size[1], device=device))
+
+    with torch.no_grad():
+        output = net(torch.rand(1, 3, input_size[0],input_size[1], device=device))
+
     print(f"< input size(height, width) : {input_size} >")
     print(f"< output shape : {output.shape} >")
     '''

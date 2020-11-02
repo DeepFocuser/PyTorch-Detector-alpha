@@ -31,7 +31,7 @@ model:
   save_period: 100
   load_period: 1
   input_size: [512, 512] # height, width
-  input_frame_number: 1
+  input_frame_number: 1 # 현재 face Dataset 에서는 무조건 1이어야 함
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
   pretrained_base: True #  input_frame_number = 1 일 때만
 
@@ -42,8 +42,8 @@ hyperparameters:
   image_std:  [0.229, 0.224, 0.225] # R G B
 
   # 학습 관련
-  epoch: 700
-  batch_size: 1
+  epoch: 100
+  batch_size: 8
   batch_log: 1
   subdivision: 1
   data_augmentation: False

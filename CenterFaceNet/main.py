@@ -190,6 +190,7 @@ if __name__ == "__main__":
                  test_html_auto_open=test_html_auto_open,
                  lambda_off=lambda_off,
                  lambda_size=lambda_size,
+                 lambda_landmark=lambda_landmark,
                  show_flag=show_flag,
                  save_flag=save_flag,
                  video_flag=video_flag,

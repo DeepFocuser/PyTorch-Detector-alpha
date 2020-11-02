@@ -415,8 +415,8 @@ if __name__ == "__main__":
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
 
-    heatmap_pred, offset_pred, wh_pred = net(data)
-    ids, scores, bboxes = prediction(heatmap_pred, offset_pred, wh_pred)
+    heatmap_pred, offset_pred, wh_pred, landmark_pred = net(data)
+    ids, scores, bboxes, _ = prediction(heatmap_pred, offset_pred, wh_pred, landmark_pred)
 
     precision_recall_2007.update(pred_bboxes=bboxes,
                                  pred_labels=ids,

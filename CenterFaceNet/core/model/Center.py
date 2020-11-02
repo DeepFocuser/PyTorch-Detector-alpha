@@ -23,6 +23,7 @@ class CenterNet(nn.Module):
         heatmap = []
         offset = []
         wh = []
+        landmark = []
 
         # heatmap
         num_output = heads['heatmap']["num_output"]
@@ -51,9 +52,19 @@ class CenterNet(nn.Module):
         temp.bias.data.fill_(bias)
         wh.append(temp)
 
+        # landmark
+        num_output = heads['landmark']["num_output"]
+        bias = heads['landmark'].get('bias', 0.0)
+        landmark.append(nn.Conv2d(in_channels, head_conv_channel, kernel_size=3, padding=1, bias=True))
+        landmark.append(nn.ReLU(inplace=True))
+        temp = nn.Conv2d(head_conv_channel, num_output, kernel_size=1, bias=True)
+        temp.bias.data.fill_(bias)
+        landmark.append(temp)
+
         self._heatmap = nn.Sequential(*heatmap)
         self._offset = nn.Sequential(*offset)
         self._wh = nn.Sequential(*wh)
+        self._landmark = nn.Sequential(*landmark)
 
         logging.info(f"{self.__class__.__name__} weight init 완료")
 
@@ -63,13 +74,14 @@ class CenterNet(nn.Module):
         heatmap = self._heatmap(feature)
         offset = self._offset(feature)
         wh = self._wh(feature)
+        landmark = self._landmark(feature)
 
         heatmap = torch.sigmoid(heatmap)
-        return heatmap, offset, wh
+        return heatmap, offset, wh, landmark
 
 
 if __name__ == "__main__":
-    input_size = (512, 512)
+    input_size = (800, 800)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -82,23 +94,29 @@ if __name__ == "__main__":
     destabilizing loss value in the first iteration of training
     '''
     net = CenterNet(base=18,
-                    input_frame_number=2,
+                    input_frame_number=1,
                     heads=OrderedDict([
                         ('heatmap', {'num_output': 5, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
-                        ('wh', {'num_output': 2})
+                        ('wh', {'num_output': 2}),
+                        ('landmark', {'num_output': 2})
                     ]),
                     head_conv_channel=64,
                     pretrained=False)
     net.to(device)
-    heatmap, offset, wh = net(torch.rand(1, 6, input_size[0],input_size[1], device=device))
+
+    with torch.no_grad():
+        heatmap, offset, wh, landmark = net(torch.rand(1, 3, input_size[0],input_size[1], device=device))
+
     print(f"< input size(height, width) : {input_size} >")
     print(f"heatmap prediction shape : {heatmap.shape}")
     print(f"offset prediction shape : {offset.shape}")
     print(f"width height prediction shape : {wh.shape}")
+    print(f"landmark prediction shape : {landmark.shape}")
     '''
-    < input size(height, width) : (512, 512) >
-    heatmap prediction shape : torch.Size([1, 5, 128, 128])
-    offset prediction shape : torch.Size([1, 2, 128, 128])
-    width height prediction shape : torch.Size([1, 2, 128, 128])
+    < input size(height, width) : (800, 800) >
+    heatmap prediction shape : torch.Size([1, 5, 200, 200])
+    offset prediction shape : torch.Size([1, 2, 200, 200])
+    width height prediction shape : torch.Size([1, 2, 200, 200])
+    landmark prediction shape : torch.Size([1, 2, 200, 200])
     '''
