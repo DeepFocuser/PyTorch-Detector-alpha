@@ -70,8 +70,8 @@ class DetectionDataset(Dataset):
 
                 # 이름 저장
                 base_image = os.path.basename(image_path)
-                name = os.path.splitext(base_image)[0]
-                self._itemname.append(name)
+                #name = os.path.splitext(base_image)[0]
+                self._itemname.append(base_image)
         else:
             logging.info("The dataset does not exist")
 
@@ -95,7 +95,7 @@ class DetectionDataset(Dataset):
                 return result[0], result[1], result[2], torch.as_tensor(origin_images), torch.as_tensor(origin_label)
             else:
                 return result[0], result[1], result[2], result[3], result[4], result[5], result[
-                    6], result[7], result[8]
+                    6], result[7]
         else:
             return images, label, self._itemname[idx]
 
@@ -159,7 +159,7 @@ if __name__ == "__main__":
         sequence_image = sequence_image[:,:,3*(sequence_number-1):]
         file_name = file_name[-1]
 
-    plot_bbox(sequence_image, label[:, :4], landmark=label[:, 5:],
+    plot_bbox(sequence_image, label[:, :4], landmarks=label[:, 5:],
               scores=None, labels=label[:, 4:5],
               class_names=dataset.classes, colors=None, reverse_rgb=True, absolute_coordinates=True,
               image_show=True, image_save=False, image_save_path="result", image_name=os.path.basename(file_name))

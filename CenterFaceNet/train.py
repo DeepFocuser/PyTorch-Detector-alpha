@@ -256,9 +256,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
         # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
         for batch_count, (
-                image, _, heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target, _) in enumerate(
-            train_dataloader,
-            start=1):
+                image, _, heatmap_target, offset_target, wh_target, landmark_target, mask_target, _) in enumerate(train_dataloader, start=1):
 
             trainer.zero_grad()
 
@@ -275,7 +273,6 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_target = wh_target.to(context)
             landmark_target = landmark_target.to(context)
             mask_target = mask_target.to(context)
-            landmark_mask_target = landmark_mask_target.to(context)
 
             image_split = torch.split(image, chunk, dim=0)
             heatmap_target_split = torch.split(heatmap_target, chunk, dim=0)
@@ -283,7 +280,6 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_target_split = torch.split(wh_target, chunk, dim=0)
             landmark_target_split = torch.split(landmark_target, chunk, dim=0)
             mask_target_split = torch.split(mask_target, chunk, dim=0)
-            landmark_mask_target_split = torch.split(landmark_mask_target, chunk, dim=0)
 
             heatmap_losses = []
             offset_losses = []
@@ -291,14 +287,13 @@ def run(mean=[0.485, 0.456, 0.406],
             landmark_losses = []
             total_loss = 0.0
 
-            for image_part, heatmap_target_part, offset_target_part, wh_target_part, landmark_target_part, mask_target_part, landmark_mask_target_part in zip(
+            for image_part, heatmap_target_part, offset_target_part, wh_target_part, landmark_target_part, mask_target_part in zip(
                     image_split,
                     heatmap_target_split,
                     offset_target_split,
                     wh_target_split,
                     landmark_target_split,
-                    mask_target_split,
-                    landmark_mask_target_split):
+                    mask_target_split):
                 heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
                 '''
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
@@ -308,7 +303,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 offset_loss = torch.div(normedl1loss(offset_pred, offset_target_part, mask_target_part) * lambda_off,
                                         subdivision)
                 wh_loss = torch.div(normedl1loss(wh_pred, wh_target_part, mask_target_part) * lambda_size, subdivision)
-                landmark_loss = torch.div(normedl1loss(landmark_pred, landmark_target_part, landmark_mask_target_part) * lambda_landmark,
+                landmark_loss = torch.div(normedl1loss(landmark_pred, landmark_target_part, mask_target_part) * lambda_landmark,
                                           subdivision)
 
                 heatmap_losses.append(heatmap_loss.item())
@@ -392,7 +387,7 @@ def run(mean=[0.485, 0.456, 0.406],
             landmark_loss_sum = 0
 
             # loss 구하기
-            for image, label, heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target, _ in valid_dataloader:
+            for image, label, heatmap_target, offset_target, wh_target, landmark_target, mask_target, _ in valid_dataloader:
                 image = image.to(context)
                 label = label.to(context)
                 gt_box = label[:, :, :4]
@@ -403,7 +398,6 @@ def run(mean=[0.485, 0.456, 0.406],
                 wh_target = wh_target.to(context)
                 landmark_target = landmark_target.to(context)
                 mask_target = mask_target.to(context)
-                landmark_mask_target = landmark_mask_target.to(context)
 
                 with torch.no_grad():
                     heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
@@ -418,7 +412,7 @@ def run(mean=[0.485, 0.456, 0.406],
                     heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
                     offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
                     wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
-                    landmark_loss = normedl1loss(landmark_pred, landmark_target, landmark_mask_target) * lambda_landmark
+                    landmark_loss = normedl1loss(landmark_pred, landmark_target, mask_target) * lambda_landmark
 
                     heatmap_loss_sum += heatmap_loss.item()
                     offset_loss_sum += offset_loss.item()
@@ -464,7 +458,7 @@ def run(mean=[0.485, 0.456, 0.406],
                     ground_truth_colors[k] = (0, 1, 0)  # RGB
 
                 dataloader_iter = iter(valid_dataloader)
-                image, label, _, _, _, _, _, _, _ = next(dataloader_iter)
+                image, label, _, _, _, _, _, _ = next(dataloader_iter)
 
                 image = image.to(context)
                 label = label.to(context)
@@ -503,13 +497,13 @@ def run(mean=[0.485, 0.456, 0.406],
                             heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
                             # ground truth box 그리기
-                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, landmark=gt_landmark, labels=gt_id, thresh=None,
+                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, landmarks=gt_landmark, labels=gt_id, thresh=None,
                                                      reverse_rgb=False,
                                                      class_names=valid_dataset.classes,
                                                      absolute_coordinates=True,
                                                      colors=ground_truth_colors)
                             # # prediction box 그리기
-                            prediction_box = plot_bbox(ground_truth, bbox, scores=score, landmark=landmark, labels=id,
+                            prediction_box = plot_bbox(ground_truth, bbox, scores=score, landmarks=landmark, labels=id,
                                                        thresh=plot_class_thresh,
                                                        reverse_rgb=False,
                                                        class_names=valid_dataset.classes,

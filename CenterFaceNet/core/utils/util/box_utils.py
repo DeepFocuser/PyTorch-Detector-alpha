@@ -318,7 +318,7 @@ def landmark_resize(landmark, in_size, out_size):
     x_scale = out_size[0] / in_size[0]
     y_scale = out_size[1] / in_size[1]
 
-    try: # landmark 길이 10 일떄
+    if len(landmark[0])==10: # landmark 길이 10 일떄
         landmark[:, 0] = x_scale * landmark[:, 0]
         landmark[:, 1] = y_scale * landmark[:, 1]
         landmark[:, 2] = x_scale * landmark[:, 2]
@@ -329,7 +329,7 @@ def landmark_resize(landmark, in_size, out_size):
         landmark[:, 7] = y_scale * landmark[:, 7]
         landmark[:, 8] = x_scale * landmark[:, 8]
         landmark[:, 9] = y_scale * landmark[:, 9]
-    except Exception as E: # landmark 길이 14 일때(BOX 포함)
+    else : # landmark 길이 14 일때(BOX 포함)
         landmark[:, 5] = x_scale * landmark[:, 5]
         landmark[:, 6] = y_scale * landmark[:, 6]
         landmark[:, 7] = x_scale * landmark[:, 7]
@@ -340,6 +340,7 @@ def landmark_resize(landmark, in_size, out_size):
         landmark[:, 12] = y_scale * landmark[:, 12]
         landmark[:, 13] = x_scale * landmark[:, 13]
         landmark[:, 14] = y_scale * landmark[:, 14]
+
     return landmark
 
 def landmark_flip(landmark, size, flip_x=False, flip_y=False):

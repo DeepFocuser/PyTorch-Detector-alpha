@@ -99,7 +99,7 @@ if __name__ == "__main__":
                         ('heatmap', {'num_output': 5, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
                         ('wh', {'num_output': 2}),
-                        ('landmark', {'num_output': 2})
+                        ('landmark', {'num_output': 10})
                     ]),
                     head_conv_channel=64,
                     pretrained=False)
@@ -118,5 +118,5 @@ if __name__ == "__main__":
     heatmap prediction shape : torch.Size([1, 5, 200, 200])
     offset prediction shape : torch.Size([1, 2, 200, 200])
     width height prediction shape : torch.Size([1, 2, 200, 200])
-    landmark prediction shape : torch.Size([1, 2, 200, 200])
+    landmark prediction shape : torch.Size([1, 10, 200, 200])
     '''

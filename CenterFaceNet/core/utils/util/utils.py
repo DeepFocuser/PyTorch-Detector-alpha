@@ -14,7 +14,7 @@ if os.path.isfile(logfilepath):
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 # test시 nms 통과후 적용
-def plot_bbox(img, bboxes, landmark=None, scores=None, labels=None, thresh=0.5,
+def plot_bbox(img, bboxes, landmarks=None, scores=None, labels=None, thresh=0.5,
               class_names=None, colors=None, reverse_rgb=False, absolute_coordinates=True,
               image_show=False, image_save=False, image_save_path=None, image_name=None, heatmap=None):
 
@@ -46,8 +46,8 @@ def plot_bbox(img, bboxes, landmark=None, scores=None, labels=None, thresh=0.5,
     else:
         if isinstance(bboxes, torch.Tensor):
             bboxes = bboxes.detach().cpu().numpy().copy()
-        if isinstance(landmark, torch.Tensor):
-            landmark = landmark.detach().cpu().numpy().copy()
+        if isinstance(landmarks, torch.Tensor):
+            landmarks = landmarks.detach().cpu().numpy().copy()
         if isinstance(labels, torch.Tensor):
             labels = labels.detach().cpu().numpy().copy()
         if isinstance(scores, torch.Tensor):
@@ -100,8 +100,8 @@ def plot_bbox(img, bboxes, landmark=None, scores=None, labels=None, thresh=0.5,
 
             # landmark 그리기
             try:
-                for j in range(0, len(landmark[i]), 2):
-                    cv2.line(img, tuple(landmark[i][j:j+2]), tuple(landmark[i][j:j+2]), (0, 255, 0), thickness=3)
+                for j in range(0, len(landmarks[i]), 2):
+                    cv2.line(img, tuple(landmarks[i][j:j+2]), tuple(landmarks[i][j:j+2]), (0, 255, 0), thickness=3)
             except Exception as E:
                 logging.info(E)
 

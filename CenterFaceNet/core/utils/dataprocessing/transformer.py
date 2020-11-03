@@ -95,9 +95,9 @@ class CenterTrainTransform(object):
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
             bbox = torch.as_tensor(bbox)
-            heatmap, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
-                                                                                                                           output_w, output_h, img.device)
-            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0],landmark_mask_target[0], name
+            heatmap, offset_target, wh_target, landmark_target, mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
+                                                                                                     output_w, output_h, img.device)
+            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], name
         else:
             bbox = torch.as_tensor(bbox)
             return img, bbox, name
@@ -154,10 +154,10 @@ class CenterValidTransform(object):
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
             bbox = torch.as_tensor(bbox)
-            heatmap, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
-                                                                                                                           output_w, output_h, img.device)
+            heatmap, offset_target, wh_target, landmark_target, mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
+                                                                                                     output_w, output_h, img.device)
 
-            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], landmark_mask_target, name
+            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], name
         else:
             bbox = torch.as_tensor(bbox)
             return img, bbox, name

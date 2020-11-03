@@ -398,9 +398,10 @@ if __name__ == "__main__":
 
     net = CenterNet(base=18,
                     heads=OrderedDict([
-                        ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
+                        ('heatmap', {'num_output': 5, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
-                        ('wh', {'num_output': 2})
+                        ('wh', {'num_output': 2}),
+                        ('landmark', {'num_output': 10})
                     ]),
                     head_conv_channel=64, pretrained=False)
 

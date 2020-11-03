@@ -13,7 +13,7 @@ class Prediction(nn.Module):
         self._nms_thresh = nms_thresh
         self._except_class_thresh = except_class_thresh
 
-    def _non_maximum_suppression(self, ids, scores, bboxes):
+    def _non_maximum_suppression(self, ids, scores, bboxes, landmarks):
 
         # https://gist.github.com/mkocabas/a2f565b27331af0da740c11c78699185
         '''
@@ -23,11 +23,12 @@ class Prediction(nn.Module):
         :param ids: (object number, 1)
         :param scores: (object number, 1)
         :param bboxes: (object number, 4)
+        :param landmarks: (object number, 10)
         :return: ids, scores, bboxes, landmarks
         '''
 
         if ids.shape[0] == 1:
-            return ids, scores, bboxes
+            return ids, scores, bboxes, landmarks
 
         # 내림차순 정렬
         indices = scores.argsort(dim=0, descending=True)[:,0] # 내림차순 정렬
@@ -38,11 +39,23 @@ class Prediction(nn.Module):
         xmax = bboxes[:,2:3][indices]
         ymax = bboxes[:,3:4][indices]
 
+        lx1 = landmarks[:,0:1][indices]
+        ly1 = landmarks[:,1:2][indices]
+        lx2 = landmarks[:,2:3][indices]
+        ly2 = landmarks[:,3:4][indices]
+        lx3 = landmarks[:,4:5][indices]
+        ly3 = landmarks[:,5:6][indices]
+        lx4 = landmarks[:,6:7][indices]
+        ly4 = landmarks[:,7:8][indices]
+        lx5 = landmarks[:,8:9][indices]
+        ly5 = landmarks[:,9:10][indices]
+
         # nms 알고리즘
         x1 = xmin[:, 0]
         y1 = ymin[:, 0]
         x2 = xmax[:, 0]
         y2 = ymax[:, 0]
+
         mask = torch.ones_like(x1)
         i = 0
         while i < len(ids)-1:
@@ -69,6 +82,17 @@ class Prediction(nn.Module):
         xmax = xmax * mask
         ymax = ymax * mask
 
+        lx1 = lx1 * mask
+        ly1 = ly1 * mask
+        lx2 = lx2 * mask
+        ly2 = ly2 * mask
+        lx3 = lx3 * mask
+        ly3 = ly3 * mask
+        lx4 = lx4 * mask
+        ly4 = ly4 * mask
+        lx5 = lx5 * mask
+        ly5 = ly5 * mask
+
         # nms 한 것들 mask 씌우기
         ids = torch.where(ids<0, torch.ones_like(ids)*-1, ids) # 0 : nms / -1 : 배경 -> -1 로 표현
         scores = torch.where(scores<0, torch.ones_like(scores)*-1, scores)
@@ -77,6 +101,12 @@ class Prediction(nn.Module):
         xmax = torch.where(xmax<0, torch.ones_like(xmax)*-1, xmax)
         ymax = torch.where(ymax<0, torch.ones_like(ymax)*-1, ymax)
         bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
+        landmarks = torch.cat([lx1, ly1,
+                               lx2, ly2,
+                               lx3, ly3,
+                               lx4, ly4,
+                               lx5, ly5
+                               ], dim=-1)
 
         return ids, scores, bboxes, landmarks
 
@@ -107,6 +137,8 @@ class Prediction(nn.Module):
         offset = offset.permute(0, 2, 3, 1).reshape(
             (batch, -1, 2))  # (batch, x, y, channel) -> (batch, height*width, 2)
         wh = wh.permute(0, 2, 3, 1).reshape((batch, -1, 2))  # (batch, width, height, channel) -> (batch, height*width, 2)
+        landmark = landmark.permute(0, 2, 3, 1).reshape((batch, -1, landmark.shape[1])) # (batch, width, height, channel) -> (batch, height*width, 10)
+        landmark_split = torch.split(landmark, 2, dim=-1) # 각각 (batch, height*width, 2)
         topk_indices = torch.fmod(indices, (height * width))  # 클래스별 index
 
         # 2차원 복구
@@ -138,6 +170,21 @@ class Prediction(nn.Module):
         bboxes = [topk_xs - half_w, topk_ys - half_h, topk_xs + half_w, topk_ys + half_h]  # 각각 (batch, self._topk)
         bboxes = torch.cat([bbox[:,:,None] for bbox in bboxes], dim=-1)  # (batch, self._topk, 1) ->  (batch, self._topk, 4)
 
+        landmark1_x = (landmark_split[0][offset_xs[0], offset_xs[1], offset_xs[2]]).reshape((-1, self._topk, 1))
+        landmark1_y = (landmark_split[0][offset_ys[0], offset_ys[1], offset_ys[2]]).reshape((-1, self._topk, 1))
+
+        landmark2_x = (landmark_split[1][offset_xs[0], offset_xs[1], offset_xs[2]]).reshape((-1, self._topk, 1))
+        landmark2_y = (landmark_split[1][offset_ys[0], offset_ys[1], offset_ys[2]]).reshape((-1, self._topk, 1))
+
+        landmark3_x = (landmark_split[2][offset_xs[0], offset_xs[1], offset_xs[2]]).reshape((-1, self._topk, 1))
+        landmark3_y = (landmark_split[2][offset_ys[0], offset_ys[1], offset_ys[2]]).reshape((-1, self._topk, 1))
+
+        landmark4_x = (landmark_split[3][offset_xs[0], offset_xs[1], offset_xs[2]]).reshape((-1, self._topk, 1))
+        landmark4_y = (landmark_split[3][offset_ys[0], offset_ys[1], offset_ys[2]]).reshape((-1, self._topk, 1))
+
+        landmark5_x = (landmark_split[4][offset_xs[0], offset_xs[1], offset_xs[2]]).reshape((-1, self._topk, 1))
+        landmark5_y = (landmark_split[4][offset_ys[0], offset_ys[1], offset_ys[2]]).reshape((-1, self._topk, 1))
+
         except_mask = scores > self._except_class_thresh
         ids = torch.where(except_mask, ids, torch.ones_like(ids) * -1)
         scores = torch.where(except_mask, scores, torch.ones_like(scores) * -1)
@@ -147,44 +194,74 @@ class Prediction(nn.Module):
         ymax = torch.where(except_mask, bboxes[:, :, 3:4], torch.ones_like(bboxes[:, :, 3:4]) * -1)
         bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
 
+        landmark1_x = torch.where(except_mask, landmark1_x, torch.ones_like(landmark1_x) * -1)
+        landmark1_y = torch.where(except_mask, landmark1_y, torch.ones_like(landmark1_y) * -1)
+        landmark2_x = torch.where(except_mask, landmark2_x, torch.ones_like(landmark2_x) * -1)
+        landmark2_y = torch.where(except_mask, landmark2_y, torch.ones_like(landmark2_y) * -1)
+        landmark3_x = torch.where(except_mask, landmark3_x, torch.ones_like(landmark3_x) * -1)
+        landmark3_y = torch.where(except_mask, landmark3_y, torch.ones_like(landmark3_y) * -1)
+        landmark4_x = torch.where(except_mask, landmark4_x, torch.ones_like(landmark4_x) * -1)
+        landmark4_y = torch.where(except_mask, landmark4_y, torch.ones_like(landmark4_y) * -1)
+        landmark5_x = torch.where(except_mask, landmark5_x, torch.ones_like(landmark5_x) * -1)
+        landmark5_y = torch.where(except_mask, landmark5_y, torch.ones_like(landmark5_y) * -1)
+
+        landmark_list = [landmark1_x, landmark1_y, landmark2_x, landmark2_y, landmark3_x, landmark3_y, landmark4_x, landmark4_y, landmark5_x, landmark5_y]
+        landmarks = torch.cat(landmark_list, dim=-1)  # (batch, self._topk, 1) ->  (batch, self._topk, 10)
+
         if self._nms:
             if self._nms_thresh > 0 and self._nms_thresh < 1:
 
                 ids_list = []
                 scores_list = []
                 bboxes_list = []
+                llmarks_list = []
 
                 # batch 별로 나누기
                 #for id, score, x_min, y_min, x_max, y_max in zip(ids, scores, xmin, ymin, xmax, ymax):
-                for id, score, box in zip(ids, scores, bboxes):
+                for id, score, box, lmark in zip(ids, scores, bboxes, landmarks):
                     id_list = []
                     score_list = []
                     bbox_list = []
+                    llmark_list = []
                     # id별로 나누기
                     for uid in self._unique_ids:
                         indices = id==uid
                         bbox = torch.cat([box[:,0:1][indices, None], box[:,1:2][indices, None], box[:, 2:3][indices, None], box[:,3:4][indices, None]], dim=-1)
+                        llmark = torch.cat([lmark[:, 0:1][indices, None],
+                                            lmark[:, 1:2][indices, None],
+                                            lmark[:, 2:3][indices, None],
+                                            lmark[:, 3:4][indices, None],
+                                            lmark[:, 4:5][indices, None],
+                                            lmark[:, 5:6][indices, None],
+                                            lmark[:, 6:7][indices, None],
+                                            lmark[:, 7:8][indices, None],
+                                            lmark[:, 8:9][indices, None],
+                                            lmark[:, 9:10][indices, None]], dim=-1)
                         if uid < 0: # 배경인 경우
-                            id_part, score_part, bbox_part = id[indices, None], score[indices, None], bbox
+                            id_part, score_part, bbox_part, llmark_part = id[indices, None], score[indices, None], bbox, llmark
                         else:
-                            id_part, score_part, bbox_part = self._non_maximum_suppression(id[indices, None], score[indices, None], bbox)
+                            id_part, score_part, bbox_part, llmark_part = self._non_maximum_suppression(id[indices, None], score[indices, None], bbox, llmark)
 
                         id_list.append(id_part)
                         score_list.append(score_part)
                         bbox_list.append(bbox_part)
+                        llmark_list.append(llmark_part)
 
                     id_concat = torch.cat(id_list, dim=0)
                     score_concat = torch.cat(score_list, dim=0)
                     bbox_concat = torch.cat(bbox_list, dim=0)
+                    llmark_concat = torch.cat(llmark_list, dim=0)
 
                     ids_list.append(id_concat)
                     scores_list.append(score_concat)
                     bboxes_list.append(bbox_concat)
+                    llmarks_list.append(llmark_concat)
 
                 # batch 차원
                 ids = torch.stack(ids_list, dim=0)
                 scores = torch.stack(scores_list, dim=0)
                 bboxes = torch.stack(bboxes_list, dim=0)
+                landmarks = torch.stack(llmarks_list, dim=0)
 
             return ids, scores, bboxes * self._scale, landmarks * self._scale
         else:
@@ -213,7 +290,8 @@ if __name__ == "__main__":
                     heads=OrderedDict([
                         ('heatmap', {'num_output': 1, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
-                        ('wh', {'num_output': 2})
+                        ('wh', {'num_output': 2}),
+                        ('landmark', {'num_output': 10})
                     ]),
                     head_conv_channel=64,
                     pretrained=False)
@@ -235,5 +313,5 @@ if __name__ == "__main__":
     topk class id shape : torch.Size([1, 100, 1])
     topk class scores shape : torch.Size([1, 100, 1])
     topk box predictions shape : torch.Size([1, 100, 4])
-    topk landmark predictions shape : torch.Size([1, 100, 2])
+    topk landmark predictions shape : torch.Size([1, 100, 10])
     '''

@@ -89,9 +89,9 @@ class TargetGenerator(nn.Module):
             for face five(x,y) points landmark
             중심으로부터의 offset을 계산하자
         '''
-        landmark_target = np.zeros((batch_size, 2, output_height, output_width), dtype=np.float32)
+        _, _, repeats = gt_landmarks.shape
+        landmark_target = np.zeros((batch_size, repeats, output_height, output_width), dtype=np.float32)
         mask_target = np.zeros((batch_size, 2, output_height, output_width), dtype=np.float32)
-        landmark_mask_target = np.zeros((batch_size, 2, output_height, output_width), dtype=np.float32)
 
         for batch, gt_box, gt_id, gt_landmark in zip(range(len(gt_boxes)), gt_boxes, gt_ids, gt_landmarks):
             for bbox, id, landmark in zip(gt_box, gt_id, gt_landmark):
@@ -111,35 +111,6 @@ class TargetGenerator(nn.Module):
                 center_x = np.clip(center_x, 0, output_width - 1)
                 center_y = np.clip(center_y, 0, output_height - 1)
 
-                landmark1 = landmark[:2]
-                landmark2 = landmark[2:4]
-                landmark3 = landmark[4:6]
-                landmark4 = landmark[6:8]
-                landmark5 = landmark[8:10]
-
-                landmark1_int = landmark1.astype(np.int32)
-                landmark2_int = landmark2.astype(np.int32)
-                landmark3_int = landmark3.astype(np.int32)
-                landmark4_int = landmark4.astype(np.int32)
-                landmark5_int = landmark5.astype(np.int32)
-
-                landmark1_x, landmark1_y = landmark1_int
-                landmark2_x, landmark2_y = landmark2_int
-                landmark3_x, landmark3_y = landmark3_int
-                landmark4_x, landmark4_y = landmark4_int
-                landmark5_x, landmark5_y = landmark5_int
-
-                landmark1_y = np.clip(landmark1_y, 0, output_height - 1)
-                landmark1_x = np.clip(landmark1_x, 0, output_width - 1)
-                landmark2_y = np.clip(landmark2_y, 0, output_height - 1)
-                landmark2_x = np.clip(landmark2_x, 0, output_width - 1)
-                landmark3_y = np.clip(landmark3_y, 0, output_height - 1)
-                landmark3_x = np.clip(landmark3_x, 0, output_width - 1)
-                landmark4_y = np.clip(landmark4_y, 0, output_height - 1)
-                landmark4_x = np.clip(landmark4_x, 0, output_width - 1)
-                landmark5_y = np.clip(landmark5_y, 0, output_height - 1)
-                landmark5_x = np.clip(landmark5_x, 0, output_width - 1)
-
                 # heatmap
                 # C:\ProgramData\Anaconda3\Lib\site-packages\gluoncv\model_zoo\center_net\target_generator.py
                 radius = gaussian_radius(height=box_h, width=box_w)
@@ -155,24 +126,15 @@ class TargetGenerator(nn.Module):
                 # center offset
                 offset_target[batch, :, center_y, center_x] = center - center_int
 
-                # landmark - center
-                landmark_target[batch, :, landmark1_y, landmark1_x] = center - landmark1
-                landmark_target[batch, :, landmark2_y, landmark2_x] = center - landmark2
-                landmark_target[batch, :, landmark3_y, landmark3_x] = center - landmark3
-                landmark_target[batch, :, landmark4_y, landmark4_x] = center - landmark4
-                landmark_target[batch, :, landmark5_y, landmark5_x] = center - landmark5
+                # landmark - center / (width, height)
+                center_repeat = np.repeat(center, repeats//2, axis=0)
+                boxwh_repeat = np.array([output_width, output_height], dtype=np.float32).repeat(repeats//2, axis=0)
+                landmark_target[batch, :, center_y, center_x] = np.divide((landmark-center_repeat), boxwh_repeat)
 
                 # mask
                 mask_target[batch, :, center_y, center_x] = 1.0
 
-                # landmark mask
-                landmark_mask_target[batch, :, landmark1_y, landmark1_x] = 1.0
-                landmark_mask_target[batch, :, landmark2_y, landmark2_x] = 1.0
-                landmark_mask_target[batch, :, landmark3_y, landmark3_x] = 1.0
-                landmark_mask_target[batch, :, landmark4_y, landmark4_x] = 1.0
-                landmark_mask_target[batch, :, landmark5_y, landmark5_x] = 1.0
-
-        return tuple([torch.as_tensor(ele, device=device) for ele in (heatmap, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target)])
+        return tuple([torch.as_tensor(ele, device=device) for ele in (heatmap, offset_target, wh_target, landmark_target, mask_target)])
 
 
 # test
@@ -200,21 +162,19 @@ if __name__ == "__main__":
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
     gt_landmarks = label[:, :, 5:]
-    heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
-                                                                                                                   input_size[1] // scale_factor,
-                                                                                                                   input_size[0] // scale_factor, image.device)
+    heatmap_target, offset_target, wh_target, landmark_target, mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
+                                                                                             input_size[1] // scale_factor,
+                                                                                             input_size[0] // scale_factor, image.device)
 
     print(f"heatmap_targets shape : {heatmap_target.shape}")
     print(f"offset_targets shape : {offset_target.shape}")
     print(f"wh_targets shape : {wh_target.shape}")
     print(f"landmark_target shape : {landmark_target.shape}")
     print(f"mask_targets shape : {mask_target.shape}")
-    print(f"landmark_mask_target shape : {landmark_mask_target.shape}")
     '''
     heatmap_targets shape : torch.Size([1, 1, 192, 320])
     offset_targets shape : torch.Size([1, 2, 192, 320])
     wh_targets shape : torch.Size([1, 2, 192, 320])
-    landmark_target shape : torch.Size([1, 2, 192, 320])
+    landmark_target shape : torch.Size([1, 10, 192, 320])
     mask_targets shape : torch.Size([1, 2, 192, 320])
-    landmark_mask_target shape : torch.Size([1, 2, 192, 320])
     '''

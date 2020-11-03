@@ -108,7 +108,6 @@ def traindataloader(augmentation=True, path="Dataset/train",
                          Stack(),
                          Stack(),
                          Stack(),
-                         Stack(),
                          Stack()),
         pin_memory=pin_memory,
         drop_last=False,
@@ -133,7 +132,6 @@ def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_num
         shuffle=shuffle,
         collate_fn=Tuple(Stack(),
                          Pad(pad_val=-1),
-                         Stack(),
                          Stack(),
                          Stack(),
                          Stack(),
@@ -184,7 +182,7 @@ if __name__ == "__main__":
 
     # for문 돌리기 싫으므로, iterator로 만든
     dataloader_iter = iter(dataloader)
-    data, label, _, _, _, _, _, _, name = next(dataloader_iter)
+    data, label, _, _, _, _, _, name = next(dataloader_iter)
 
     print(f"images shape : {data.shape}")
     print(f"labels shape : {label.shape}")

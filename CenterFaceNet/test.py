@@ -214,14 +214,14 @@ def run(input_frame_number=2,
             if i >= video_min and i <= video_max:
                 out.write(hconcat_images)
 
-        heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
-                                                                                                                       netwidth // scale_factor,
-                                                                                                                       netheight // scale_factor,
-                                                                                                                       image.device)
+        heatmap_target, offset_target, wh_target, landmark_target, mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
+                                                                                                 netwidth // scale_factor,
+                                                                                                 netheight // scale_factor,
+                                                                                                 image.device)
         heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
         offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
         wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
-        landmark_loss = normedl1loss(landmark_pred, landmark_target, landmark_mask_target) * lambda_landmark
+        landmark_loss = normedl1loss(landmark_pred, landmark_target, mask_target) * lambda_landmark
 
         heatmap_loss_sum += heatmap_loss.item()
         offset_loss_sum += offset_loss.item()

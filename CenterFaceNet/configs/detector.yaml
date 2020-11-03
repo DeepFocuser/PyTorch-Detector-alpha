@@ -27,10 +27,10 @@ Dataset:
 
 model:
   training: True
-  load_name: 512_512_ADAM_PCENTER_RES18 # trainㅅing = False,
+  load_name: 800_800_ADAM_PCENTER_RES18 # trainㅅing = False,
   save_period: 100
   load_period: 1
-  input_size: [512, 512] # height, width
+  input_size: [800, 800] # height, width
   input_frame_number: 1 # 현재 face Dataset 에서는 무조건 1이어야 함
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
   pretrained_base: True #  input_frame_number = 1 일 때만
