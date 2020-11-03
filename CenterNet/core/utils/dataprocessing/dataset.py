@@ -51,8 +51,8 @@ class DetectionDataset(Dataset):
 
                 # 이름 저장
                 base_image = os.path.basename(image_path[-1])
-                name = os.path.splitext(base_image)[0]
-                self._itemname.append(name)
+                #name = os.path.splitext(base_image)[0]
+                self._itemname.append(base_image)
         else:
             logging.info("The dataset does not exist")
 
