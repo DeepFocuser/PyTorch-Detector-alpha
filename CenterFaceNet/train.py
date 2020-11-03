@@ -152,6 +152,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
     num_classes = train_dataset.num_class  # 클래스 수
     name_classes = train_dataset.classes
+    landmark_number = train_dataset.landmark_number
 
     optimizer = optimizer.upper()
     if pretrained_base:
@@ -169,7 +170,8 @@ def run(mean=[0.485, 0.456, 0.406],
                     heads=OrderedDict([
                         ('heatmap', {'num_output': num_classes, 'bias': -2.19}),
                         ('offset', {'num_output': 2}),
-                        ('wh', {'num_output': 2})
+                        ('wh', {'num_output': 2}),
+                        ('landmark', {'num_output': landmark_number})
                     ]),
                     head_conv_channel=64,
                     pretrained=pretrained_base)
@@ -303,7 +305,9 @@ def run(mean=[0.485, 0.456, 0.406],
                 offset_loss = torch.div(normedl1loss(offset_pred, offset_target_part, mask_target_part) * lambda_off,
                                         subdivision)
                 wh_loss = torch.div(normedl1loss(wh_pred, wh_target_part, mask_target_part) * lambda_size, subdivision)
-                landmark_loss = torch.div(normedl1loss(landmark_pred, landmark_target_part, mask_target_part) * lambda_landmark,
+
+                landmarks_mask_target_part = torch.repeat_interleave(mask_target_part, landmark_number//2, dim = 1)
+                landmark_loss = torch.div(normedl1loss(landmark_pred, landmark_target_part, landmarks_mask_target_part) * lambda_landmark,
                                           subdivision)
 
                 heatmap_losses.append(heatmap_loss.item())
@@ -412,7 +416,9 @@ def run(mean=[0.485, 0.456, 0.406],
                     heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
                     offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
                     wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
-                    landmark_loss = normedl1loss(landmark_pred, landmark_target, mask_target) * lambda_landmark
+
+                    landmarks_mask_target = torch.repeat_interleave(mask_target, landmark_number // 2, dim=1)
+                    landmark_loss = normedl1loss(landmark_pred, landmark_target, landmarks_mask_target) * lambda_landmark
 
                     heatmap_loss_sum += heatmap_loss.item()
                     offset_loss_sum += offset_loss.item()
