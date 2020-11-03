@@ -333,7 +333,7 @@ def run(mean=[0.485, 0.456, 0.406],
                              f'[heatmap loss = {sum(heatmap_losses):.3f}]'
                              f'[offset loss = {sum(offset_losses):.3f}]'
                              f'[wh loss = {sum(wh_losses):.3f}]'
-                             f'[landmark loss = {sum(landmark_losses):.3f}')
+                             f'[landmark loss = {sum(landmark_losses):.3f}]')
             time_stamp = time.time()
 
         train_heatmap_loss_mean = np.divide(heatmap_loss_sum, train_update_number_per_epoch)
