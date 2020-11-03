@@ -315,8 +315,8 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_loss_sum += sum(wh_losses)
 
             if batch_count % batch_log == 0:
-                logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}],'
-                             f'[Speed {image.shape[0] / (time.time() - time_stamp):.3f} samples/sec],'
+                logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}]'
+                             f'[Speed {image.shape[0] / (time.time() - time_stamp):.3f} samples/sec]'
                              f'[Lr = {lr_sch.get_last_lr()}]'
                              f'[heatmap loss = {sum(heatmap_losses):.3f}]'
                              f'[offset loss = {sum(offset_losses):.3f}]'
