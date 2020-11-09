@@ -95,9 +95,9 @@ class CenterTrainTransform(object):
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
             bbox = torch.as_tensor(bbox)
-            heatmap, offset_target, wh_target, landmark_target, mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
-                                                                                                     output_w, output_h, img.device)
-            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], name
+            heatmap, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
+                                                                                                                           output_w, output_h, img.device)
+            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], landmark_mask_target[0], name
         else:
             bbox = torch.as_tensor(bbox)
             return img, bbox, name
@@ -154,10 +154,10 @@ class CenterValidTransform(object):
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
             bbox = torch.as_tensor(bbox)
-            heatmap, offset_target, wh_target, landmark_target, mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
-                                                                                                     output_w, output_h, img.device)
+            heatmap, offset_target, wh_target, landmark_target, mask_target, landmark_mask_target = self._target_generator(bbox[:, :, :4], bbox[:, :, 4:5], bbox[:, :, 5:],
+                                                                                                                           output_w, output_h, img.device)
 
-            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], name
+            return img, bbox[0], heatmap[0], offset_target[0], wh_target[0], landmark_target[0], mask_target[0], landmark_mask_target[0], name
         else:
             bbox = torch.as_tensor(bbox)
             return img, bbox, name
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     transform = CenterTrainTransform(input_size, input_frame_number=1, mean=(0.485, 0.456, 0.406),
                                      std=(0.229, 0.224, 0.225),
                                      scale_factor=scale_factor)
-    dataset = DetectionDataset(path=os.path.join(root, "Dataset", 'valid'), transform=transform, sequence_number=1)
+    dataset = DetectionDataset(path=os.path.join(root, "Dataset_WIDER", 'valid'), transform=transform, sequence_number=1)
     length = len(dataset)
     image, label, file_name, _, _ = dataset[random.randint(0, length - 1)]
 

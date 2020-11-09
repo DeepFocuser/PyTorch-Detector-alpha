@@ -1,7 +1,7 @@
 Dataset:
-  train: Dataset/train
-  valid: Dataset/valid
-  test: Dataset/test
+  train: Dataset_WIDER/train
+  valid: Dataset_WIDER/valid
+  test: Dataset_WIDER/test
   test_weight_path: weights
 
   # Test
@@ -27,12 +27,12 @@ Dataset:
 
 model:
   training: True
-  load_name: 800_800_ADAM_PCENTER_RES18 # trainㅅing = False,
-  save_period: 100
-  load_period: 100
+  load_name: 800_800_ADAM_PCENTER_RES34 # trainㅅing = False,
+  save_period: 7
+  load_period: 70
   input_size: [800, 800] # height, width
   input_frame_number: 1 # 현재 face Dataset 에서는 무조건 1이어야 함
-  ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
+  ResNetbase: 34 # resnet base version : 18, 34, 50, 101, 152
   pretrained_base: True #  input_frame_number = 1 일 때만
 
 hyperparameters:
@@ -42,7 +42,7 @@ hyperparameters:
   image_std:  [0.229, 0.224, 0.225] # R G B
 
   # 학습 관련
-  epoch: 100
+  epoch: 70
   batch_size: 8
   batch_log: 100
   subdivision: 1
@@ -61,7 +61,7 @@ context:
 
 validation:
   valid_size: 8
-  eval_period: 100
+  eval_period: 7
   tensorboard: True
   valid_graph_path: valid_Graph
   valid_html_auto_open: False

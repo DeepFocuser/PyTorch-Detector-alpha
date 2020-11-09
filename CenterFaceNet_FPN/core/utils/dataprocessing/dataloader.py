@@ -108,6 +108,7 @@ def traindataloader(augmentation=True, path="Dataset/train",
                          Stack(),
                          Stack(),
                          Stack(),
+                         Stack(),
                          Stack()),
         pin_memory=pin_memory,
         drop_last=False,
@@ -132,6 +133,7 @@ def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_num
         shuffle=shuffle,
         collate_fn=Tuple(Stack(),
                          Pad(pad_val=-1),
+                         Stack(),
                          Stack(),
                          Stack(),
                          Stack(),
@@ -176,13 +178,13 @@ if __name__ == "__main__":
     which enables fast data transfer to CUDA-enabled GPUs.
     '''
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataloader, dataset = validdataloader(path=os.path.join(root, 'Dataset', "valid"), input_size=(512, 512),
+    dataloader, dataset = validdataloader(path=os.path.join(root, 'Dataset_WIDER', "valid"), input_size=(512, 512),
                                           batch_size=4, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
                                           std=[0.229, 0.224, 0.225])
 
     # for문 돌리기 싫으므로, iterator로 만든
     dataloader_iter = iter(dataloader)
-    data, label, _, _, _, _, _, name = next(dataloader_iter)
+    data, label, _, _, _, _, _, _, name = next(dataloader_iter)
 
     print(f"images shape : {data.shape}")
     print(f"labels shape : {label.shape}")

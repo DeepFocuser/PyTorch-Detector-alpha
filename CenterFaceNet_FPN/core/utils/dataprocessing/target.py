@@ -92,6 +92,7 @@ class TargetGenerator(nn.Module):
         _, _, repeats = gt_landmarks.shape
         landmark_target = np.zeros((batch_size, repeats, output_height, output_width), dtype=np.float32)
         mask_target = np.zeros((batch_size, 2, output_height, output_width), dtype=np.float32)
+        landmarks_mask_target = np.zeros((batch_size, repeats, output_height, output_width), dtype=np.float32)
 
         for batch, gt_box, gt_id, gt_landmark in zip(range(len(gt_boxes)), gt_boxes, gt_ids, gt_landmarks):
             for bbox, id, landmark in zip(gt_box, gt_id, gt_landmark):
@@ -127,14 +128,15 @@ class TargetGenerator(nn.Module):
                 offset_target[batch, :, center_y, center_x] = center - center_int
 
                 # landmark - center / (width, height)
-                center_repeat = np.repeat([center], 5, axis=0).ravel()
-                boxwh_repeat = np.array([[output_width, output_height]], dtype=np.float32).repeat(repeats//2, axis=0).ravel()
+                center = center.tolist()
+                center_repeat = (repeats//2)*center #np.repeat([center], 5, axis=0).ravel()
+                boxwh_repeat = (repeats//2)*[output_width, output_height] #np.array([[output_width, output_height]], dtype=np.float32).repeat(repeats//2, axis=0).ravel()
                 landmark_target[batch, :, center_y, center_x] = np.divide((landmark-center_repeat), boxwh_repeat)
                 # mask
                 mask_target[batch, :, center_y, center_x] = 1.0
+                landmarks_mask_target[batch, :, center_y, center_x] = 1.0
 
-        return tuple([torch.as_tensor(ele, device=device) for ele in (heatmap, offset_target, wh_target, landmark_target, mask_target)])
-
+        return tuple([torch.as_tensor(ele, device=device) for ele in (heatmap, offset_target, wh_target, landmark_target, mask_target, landmarks_mask_target)])
 
 # test
 if __name__ == "__main__":
@@ -161,19 +163,21 @@ if __name__ == "__main__":
     gt_boxes = label[:, :, :4]
     gt_ids = label[:, :, 4:5]
     gt_landmarks = label[:, :, 5:]
-    heatmap_target, offset_target, wh_target, landmark_target, mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
-                                                                                             input_size[1] // scale_factor,
-                                                                                             input_size[0] // scale_factor, image.device)
+    heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmarks_mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
+                                                                                                                    input_size[1] // scale_factor,
+                                                                                                                    input_size[0] // scale_factor, image.device)
 
     print(f"heatmap_targets shape : {heatmap_target.shape}")
     print(f"offset_targets shape : {offset_target.shape}")
     print(f"wh_targets shape : {wh_target.shape}")
     print(f"landmark_target shape : {landmark_target.shape}")
     print(f"mask_targets shape : {mask_target.shape}")
+    print(f"landmarks_mask_target shape : {landmarks_mask_target.shape}")
     '''
     heatmap_targets shape : torch.Size([1, 1, 192, 320])
     offset_targets shape : torch.Size([1, 2, 192, 320])
     wh_targets shape : torch.Size([1, 2, 192, 320])
     landmark_target shape : torch.Size([1, 10, 192, 320])
     mask_targets shape : torch.Size([1, 2, 192, 320])
+    landmarks_mask_target shape : torch.Size([1, 10, 192, 320])
     '''

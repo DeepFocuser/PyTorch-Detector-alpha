@@ -103,7 +103,6 @@ def run(input_frame_number=2,
 
     num_classes = test_dataset.num_class  # 클래스 수
     name_classes = test_dataset.classes
-    landmark_number = test_dataset.landmark_number
 
     logging.info("jit model test")
 
@@ -216,15 +215,13 @@ def run(input_frame_number=2,
             if i >= video_min and i <= video_max:
                 out.write(hconcat_images)
 
-        heatmap_target, offset_target, wh_target, landmark_target, mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
-                                                                                                 netwidth // scale_factor,
-                                                                                                 netheight // scale_factor,
-                                                                                                 image.device)
+        heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmarks_mask_target = targetgenerator(gt_boxes, gt_ids, gt_landmarks,
+                                                                                                                        netwidth // scale_factor,
+                                                                                                                        netheight // scale_factor,
+                                                                                                                        image.device)
         heatmap_loss = heatmapfocalloss(heatmap_pred, heatmap_target)
         offset_loss = normedl1loss(offset_pred, offset_target, mask_target) * lambda_off
         wh_loss = normedl1loss(wh_pred, wh_target, mask_target) * lambda_size
-
-        landmarks_mask_target = torch.repeat_interleave(mask_target, landmark_number // 2, dim=1)
         landmark_loss = normedl1loss(landmark_pred, landmark_target, landmarks_mask_target) * lambda_landmark
 
         heatmap_loss_sum += heatmap_loss.item()

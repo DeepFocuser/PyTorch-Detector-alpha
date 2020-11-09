@@ -98,7 +98,7 @@ class DetectionDataset(Dataset):
                 return result[0], result[1], result[2], torch.as_tensor(origin_images), torch.as_tensor(origin_label)
             else:
                 return result[0], result[1], result[2], result[3], result[4], result[5], result[
-                    6], result[7]
+                    6], result[7], result[8]
         else:
             return images, label, self._itemname[idx]
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     sequence_number = 1
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataset = DetectionDataset(path=os.path.join(root, 'Dataset', 'valid'), sequence_number=sequence_number)
+    dataset = DetectionDataset(path=os.path.join(root, 'Dataset_WIDER', 'train'), sequence_number=sequence_number)
 
     length = len(dataset)
     sequence_image, label, file_name = dataset[random.randint(0, length - 1)]
