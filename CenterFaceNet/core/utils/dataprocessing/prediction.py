@@ -185,6 +185,20 @@ class Prediction(nn.Module):
         landmark5_x = (landmark_split[4][offset_xs[0], offset_xs[1], offset_xs[2]]).reshape((-1, self._topk, 1))
         landmark5_y = (landmark_split[4][offset_ys[0], offset_ys[1], offset_ys[2]]).reshape((-1, self._topk, 1))
 
+        # landmarks 복구
+        topk_xs = topk_xs[:,:,None]
+        topk_ys = topk_ys[:,:,None]
+        landmark1_x = landmark1_x*width + topk_xs
+        landmark1_y = landmark1_y*height + topk_ys
+        landmark2_x = landmark2_x*width + topk_xs
+        landmark2_y = landmark2_y*height + topk_ys
+        landmark3_x = landmark3_x*width + topk_xs
+        landmark3_y = landmark3_y*height + topk_ys
+        landmark4_x = landmark4_x*width + topk_xs
+        landmark4_y = landmark4_y*height + topk_ys
+        landmark5_x = landmark5_x*width + topk_xs
+        landmark5_y = landmark5_y*height + topk_ys
+
         except_mask = scores > self._except_class_thresh
         ids = torch.where(except_mask, ids, torch.ones_like(ids) * -1)
         scores = torch.where(except_mask, scores, torch.ones_like(scores) * -1)
@@ -204,20 +218,6 @@ class Prediction(nn.Module):
         landmark4_y = torch.where(except_mask, landmark4_y, torch.ones_like(landmark4_y) * -1)
         landmark5_x = torch.where(except_mask, landmark5_x, torch.ones_like(landmark5_x) * -1)
         landmark5_y = torch.where(except_mask, landmark5_y, torch.ones_like(landmark5_y) * -1)
-
-        # landmarks 복구
-        topk_xs = topk_xs[:,:,None]
-        topk_ys = topk_ys[:,:,None]
-        landmark1_x = landmark1_x*width + topk_xs
-        landmark1_y = landmark1_y*height + topk_ys
-        landmark2_x = landmark2_x*width + topk_xs
-        landmark2_y = landmark2_y*height + topk_ys
-        landmark3_x = landmark3_x*width + topk_xs
-        landmark3_y = landmark3_y*height + topk_ys
-        landmark4_x = landmark4_x*width + topk_xs
-        landmark4_y = landmark4_y*height + topk_ys
-        landmark5_x = landmark5_x*width + topk_xs
-        landmark5_y = landmark5_y*height + topk_ys
 
         landmark_list = [landmark1_x, landmark1_y, landmark2_x, landmark2_y, landmark3_x, landmark3_y, landmark4_x, landmark4_y, landmark5_x, landmark5_y]
         landmarks = torch.cat(landmark_list, dim=-1)  # (batch, self._topk, 1) ->  (batch, self._topk, 10)
