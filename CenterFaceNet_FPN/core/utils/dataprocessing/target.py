@@ -127,10 +127,9 @@ class TargetGenerator(nn.Module):
                 offset_target[batch, :, center_y, center_x] = center - center_int
 
                 # landmark - center / (width, height)
-                center_repeat = np.repeat(center, repeats//2, axis=0)
-                boxwh_repeat = np.array([output_width, output_height], dtype=np.float32).repeat(repeats//2, axis=0)
+                center_repeat = np.repeat([center], 5, axis=0).ravel()
+                boxwh_repeat = np.array([[output_width, output_height]], dtype=np.float32).repeat(repeats//2, axis=0).ravel()
                 landmark_target[batch, :, center_y, center_x] = np.divide((landmark-center_repeat), boxwh_repeat)
-
                 # mask
                 mask_target[batch, :, center_y, center_x] = 1.0
 
@@ -144,14 +143,14 @@ if __name__ == "__main__":
     from core.utils.dataprocessing.transformer import CenterTrainTransform
     import os
 
-    input_size = (768, 1280)
+    input_size = (768, 1280) # height, width
     scale_factor = 4
     sequence_number = 1
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = CenterTrainTransform(input_size, input_frame_number=sequence_number, mean=(0.485, 0.456, 0.406),
                                      std=(0.229, 0.224, 0.225),
                                      scale_factor=4)
-    dataset = DetectionDataset(path=os.path.join(root, 'Dataset', 'valid'), transform=transform, sequence_number=sequence_number)
+    dataset = DetectionDataset(path=os.path.join(root, 'Dataset_WIDER', 'train'), transform=transform, sequence_number=sequence_number)
 
     num_classes = dataset.num_class
     image, label, _, _, _ = dataset[0]
