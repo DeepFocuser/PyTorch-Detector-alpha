@@ -188,16 +188,20 @@ class Prediction(nn.Module):
         # landmarks 복구
         topk_xs = topk_xs[:,:,None]
         topk_ys = topk_ys[:,:,None]
-        landmark1_x = landmark1_x*width + topk_xs
-        landmark1_y = landmark1_y*height + topk_ys
-        landmark2_x = landmark2_x*width + topk_xs
-        landmark2_y = landmark2_y*height + topk_ys
-        landmark3_x = landmark3_x*width + topk_xs
-        landmark3_y = landmark3_y*height + topk_ys
-        landmark4_x = landmark4_x*width + topk_xs
-        landmark4_y = landmark4_y*height + topk_ys
-        landmark5_x = landmark5_x*width + topk_xs
-        landmark5_y = landmark5_y*height + topk_ys
+        landmark1_x = landmark1_x + topk_xs
+        landmark1_y = landmark1_y + topk_ys
+
+        landmark2_x = landmark2_x + topk_xs
+        landmark2_y = landmark2_y + topk_ys
+
+        landmark3_x = landmark3_x + topk_xs
+        landmark3_y = landmark3_y + topk_ys
+
+        landmark4_x = landmark4_x + topk_xs
+        landmark4_y = landmark4_y + topk_ys
+
+        landmark5_x = landmark5_x + topk_xs
+        landmark5_y = landmark5_y + topk_ys
 
         except_mask = scores > self._except_class_thresh
         ids = torch.where(except_mask, ids, torch.ones_like(ids) * -1)
