@@ -130,8 +130,8 @@ class TargetGenerator(nn.Module):
                 # landmark - center / (width, height)
                 center = center.tolist()
                 center_repeat = (repeats//2)*center #np.repeat([center], 5, axis=0).ravel()
-                boxwh_repeat = (repeats//2)*[output_width, output_height] #np.array([[output_width, output_height]], dtype=np.float32).repeat(repeats//2, axis=0).ravel()
-                landmark_target[batch, :, center_y, center_x] = np.divide((landmark-center_repeat), boxwh_repeat)
+                landmark_target[batch, :, center_y, center_x] = landmark-center_repeat
+
                 # mask
                 mask_target[batch, :, center_y, center_x] = 1.0
                 landmarks_mask_target[batch, :, center_y, center_x] = 1.0
