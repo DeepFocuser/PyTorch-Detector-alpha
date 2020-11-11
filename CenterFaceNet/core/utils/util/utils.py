@@ -118,7 +118,7 @@ def plot_bbox(img, bboxes, landmarks=None, scores=None, labels=None, thresh=0.5,
                             org=(xmin , ymin - 7), \
                             fontFace=cv2.FONT_HERSHEY_SIMPLEX, \
                             fontScale=0.5, \
-                            color=[21, 21, 255], \
+                            color=denorm_color, \
                             thickness=1, bottomLeftOrigin=False)
 
 
