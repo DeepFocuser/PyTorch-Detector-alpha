@@ -81,7 +81,7 @@ class CenterNet(nn.Module):
 
 
 if __name__ == "__main__":
-    input_size = (800, 800)
+    input_size = (640, 640)
     device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

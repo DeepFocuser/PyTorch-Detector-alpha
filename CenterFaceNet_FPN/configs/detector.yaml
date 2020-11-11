@@ -14,25 +14,25 @@ Dataset:
   video_fps: 15
   video_name: video
   topk: 200
-  except_class_thresh: 0.5
-  iou_thresh: 0.5
+  except_class_thresh: 0.01
+  iou_thresh: 0.4
 
   # nms 관련
   nms: False
   nms_thresh: 0.5
 
-  plot_class_thresh: 0.5 # 그릴때 score_thresh 보다 큰 것들만 그린다.
+  plot_class_thresh: 0.4 # 그릴때 score_thresh 보다 큰 것들만 그린다.
   test_graph_path: test_Graph
   test_html_auto_open: False
 
 model:
   training: True
-  load_name: 800_800_ADAM_PCENTER_RES34 # trainㅅing = False,
+  load_name: 640_640_ADAM_PCENTER_RES34 # training = False,
   save_period: 7
   load_period: 70
-  input_size: [800, 800] # height, width
+  input_size: [640, 640] # height, width
   input_frame_number: 1 # 현재 face Dataset 에서는 무조건 1이어야 함
-  ResNetbase: 34 # resnet base version : 18, 34, 50, 101, 152
+  ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
   pretrained_base: True #  input_frame_number = 1 일 때만
 
 hyperparameters:
@@ -43,10 +43,10 @@ hyperparameters:
 
   # 학습 관련
   epoch: 70
-  batch_size: 8
+  batch_size: 16
   batch_log: 100
   subdivision: 1
-  data_augmentation: True
+  data_augmentation: False
   num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.
   optimizer: ADAM # ADAM, RMSPROP
   lambda_off: 1
