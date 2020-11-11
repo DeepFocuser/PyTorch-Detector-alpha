@@ -503,7 +503,7 @@ def run(mean=[0.485, 0.456, 0.406],
                             heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
                             # ground truth box 그리기
-                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, landmarks=gt_landmark, labels=gt_id, thresh=None,
+                            ground_truth = plot_bbox(ig, gt_box * scale_factor, scores=None, landmarks=gt_landmark * scale_factor, labels=gt_id, thresh=None,
                                                      reverse_rgb=False,
                                                      class_names=valid_dataset.classes,
                                                      absolute_coordinates=True,
