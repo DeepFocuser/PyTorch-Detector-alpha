@@ -8,17 +8,16 @@ import mlflow as ml
 import numpy as np
 import torch
 import torchvision
-from torch.nn import DataParallel
-from torch.optim import Adam, RMSprop, SGD, lr_scheduler
-from torch.utils.tensorboard import SummaryWriter
-from torchsummary import summary as modelsummary
-from tqdm import tqdm
-
 from core import TargetGenerator
 from core import Voc_2007_AP
 from core import Yolov3, Yolov3Loss, Prediction
 from core import plot_bbox, PrePostNet
 from core import traindataloader, validdataloader
+from torch.nn import DataParallel
+from torch.optim import Adam, RMSprop, SGD, lr_scheduler
+from torch.utils.tensorboard import SummaryWriter
+from torchsummary import summary as modelsummary
+from tqdm import tqdm
 
 logfilepath = ""
 if os.path.isfile(logfilepath):
@@ -409,7 +408,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 label = label.to(context)
                 gt_box = label[:, :, :4]
                 gt_id = label[:, :, 4:5]
-                
+
                 with torch.no_grad():
                     output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(
                         image)
@@ -458,6 +457,8 @@ def run(mean=[0.485, 0.456, 0.406],
                 name, AP = precision_recall.get_AP(c, p, r)
                 logging.info(f"class {j}'s {name} AP : {round(AP * 100, round_position)}%")
                 AP_appender.append(AP)
+
+            AP_appender = np.nan_to_num(AP_appender)
             mAP_result = np.mean(AP_appender)
 
             logging.info(f"mAP : {round(mAP_result * 100, round_position)}%")
@@ -483,7 +484,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 label = label.to(context)
                 gt_boxes = label[:, :, :4]
                 gt_ids = label[:, :, 4:5]
-                
+
                 with torch.no_grad():
                     output1, output2, output3, anchor1, anchor2, anchor3, offset1, offset2, offset3, stride1, stride2, stride3 = net(
                         image)

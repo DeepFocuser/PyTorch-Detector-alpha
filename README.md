@@ -20,7 +20,6 @@
         (pytorch) jg@JG:~$ conda install pytorch torchvision cudatoolkit=10.1 -c pytorch 
         (pytorch) jg@JG:~$ pip install matplotlib tensorboard torchsummary plotly mlflow opencv-python==4.1.1.26 tqdm PyYAML --pre --upgrade
         ```
-
 >## ***Author*** 
 
 * medical18@naver.com / JONGGON
