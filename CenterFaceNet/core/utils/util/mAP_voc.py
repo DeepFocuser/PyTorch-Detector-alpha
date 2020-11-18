@@ -219,12 +219,17 @@ class Voc_base_PR(object):
         threshold = np.array(threshold, dtype=np.object)[order]
         AP = np.around(AP[order] * 100, ceil_position)
 
+        index = 0
         for n, p, r, t, ap in zip(name, precision, recall, threshold, AP):
             graph.append(go.Scatter(
                 x=r,
                 y=p,
                 name=f"{n}({ap}%)",
-                text=[f"score : {round(score * 100, ceil_position)}" for score in t]))
+                text=[f"score : {round(score * 100, ceil_position)}" for score in t],
+                marker=dict(
+                    color=f'rgb{COLOR[index]}'),
+            ))
+            index+=1
 
         # Edit the layout
         layout = dict(title=f'Mean Average Precision : {round(mAP * 100, ceil_position)}%',
