@@ -1,6 +1,7 @@
 >## ***One Stage Detector***
 * [***CenterNet***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterNet)
 * [***Face Detector based on CenterNet***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterFaceNet)
+* [***Face Detector based on CenterNet FPN***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterFaceNet_FPN)
 * [***YoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/YoloV3)
 * [***GaussianYoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/GaussianYoloV3)
 
