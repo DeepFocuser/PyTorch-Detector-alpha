@@ -246,7 +246,6 @@ def run(mean=[0.485, 0.456, 0.406],
                       reduction="sum")
 
     prediction = Prediction(
-        unique_ids=name_classes,
         from_sigmoid=False,
         num_classes=num_classes,
         nms_thresh=nms_thresh,

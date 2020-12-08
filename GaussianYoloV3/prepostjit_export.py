@@ -41,7 +41,6 @@ def export(input_frame_number = 2,
 
     # prepost
     auxnet = Prediction(
-        unique_ids=test_dataset.classes,
         from_sigmoid=False,
         num_classes=test_dataset.num_class,
         nms_thresh=nms_thresh,

@@ -7,7 +7,6 @@ from core.utils.dataprocessing.predictFunction.decoder import Decoder
 class Prediction(Module):
 
     def __init__(self,
-                 unique_ids=["smoke"],
                  from_sigmoid=False,
                  num_classes=3,
                  nms_thresh=0.5,
@@ -16,7 +15,7 @@ class Prediction(Module):
                  multiperclass=True):
         super(Prediction, self).__init__()
 
-        self._unique_ids = [-1] + [ i for i in range(len(unique_ids))]
+        self._unique_ids = [-1] + [ i for i in range(num_classes)]
         self._except_class_thresh = except_class_thresh
         self._decoder = Decoder(from_sigmoid=from_sigmoid, num_classes=num_classes, thresh=except_class_thresh,
                                 multiperclass=multiperclass)

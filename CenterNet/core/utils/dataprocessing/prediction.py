@@ -219,7 +219,7 @@ if __name__ == "__main__":
                     pretrained=False)
 
 
-    prediction = Prediction(unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.1, nms_thresh=0.5)
+    prediction = Prediction(unique_ids=["smoke"], topk=100, scale=scale_factor, nms=True, except_class_thresh=0.14, nms_thresh=0.5)
     heatmap, offset, wh = net(torch.rand(2, 6, input_size[0], input_size[1]))
     ids, scores, bboxes = prediction(heatmap, offset, wh)
 
