@@ -271,6 +271,7 @@ def run(mean=[0.485, 0.456, 0.406],
         wh_loss_sum = 0
         object_loss_sum = 0
         class_loss_sum = 0
+        net.train()
         time_stamp = time.time()
 
         for batch_count, (image, label, _) in enumerate(
@@ -398,6 +399,8 @@ def run(mean=[0.485, 0.456, 0.406],
             wh_loss_sum = 0
             object_loss_sum = 0
             class_loss_sum = 0
+
+            net.eval()
 
             # loss 구하기
             for image, label, _ in valid_dataloader:

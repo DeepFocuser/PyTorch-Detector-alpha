@@ -254,6 +254,7 @@ def run(mean=[0.485, 0.456, 0.406],
         offset_loss_sum = 0
         wh_loss_sum = 0
         landmark_loss_sum = 0
+        net.train()
         time_stamp = time.time()
 
         # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
@@ -390,6 +391,8 @@ def run(mean=[0.485, 0.456, 0.406],
             offset_loss_sum = 0
             wh_loss_sum = 0
             landmark_loss_sum = 0
+
+            net.eval()
 
             # loss 구하기
             for image, label, heatmap_target, offset_target, wh_target, landmark_target, mask_target, landmarks_mask_target, _ in valid_dataloader:
