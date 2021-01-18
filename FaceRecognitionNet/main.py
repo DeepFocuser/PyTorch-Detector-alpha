@@ -40,6 +40,7 @@ parser = stream['hyperparameters']
 
 image_mean = parser["image_mean"]
 image_std = parser["image_std"]
+embedding = parser["embedding"]
 
 epoch = parser["epoch"]
 batch_size = parser["batch_size"]
@@ -85,6 +86,7 @@ if __name__ == "__main__":
             ml.log_param("image range before normalization", "0~1")
             ml.log_param("image mean RGB", image_mean)
             ml.log_param("image std RGB", image_std)
+            ml.log_param("embedding vector size", embedding)
 
             ml.log_param("height", input_size[0])
             ml.log_param("width", input_size[1])
@@ -110,6 +112,7 @@ if __name__ == "__main__":
         torch.backends.cudnn.benchmark = True # 그래프가 변하는 경우 학습 속도 느려질수 있음.
         train.run(mean=image_mean,
                   std=image_std,
+                  embedding=embedding,
                   epoch=epoch,
                   input_size=input_size,
                   input_frame_number=input_frame_number,

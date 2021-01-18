@@ -120,7 +120,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, input_frame_number=1, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, input_frame_number=1, embedding=128, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -153,7 +153,8 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[2])
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc_new = nn.Linear(512 * block.expansion, num_classes)
+        self.fc_new = nn.Linear(512 * block.expansion, embedding)
+        self.relu_new = nn.ReLU(inplace=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -211,6 +212,8 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc_new(x)
+        x = self.relu_new(x)
+        x = nn.functional.normalize(x, p=2, dim=1)
 
         return x
 
@@ -288,36 +291,36 @@ def resnet152(pretrained=False, progress=True, input_frame_number=1, **kwargs):
     return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrained, progress, input_frame_number,
                    **kwargs)
 
-def get_resnet(base, pretrained=False, input_frame_number=1, num_classes=2):
+def get_resnet(base, pretrained=False, input_frame_number=1, embedding=128):
 
     if base==18:
-        model = resnet18(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet18(pretrained=pretrained, input_frame_number=input_frame_number, embedding=embedding)
     elif base==34:
-        model = resnet34(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet34(pretrained=pretrained, input_frame_number=input_frame_number, embedding=embedding)
     elif base==50:
-        model = resnet50(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet50(pretrained=pretrained, input_frame_number=input_frame_number, embedding=embedding)
     elif base==101:
-        model = resnet101(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet101(pretrained=pretrained, input_frame_number=input_frame_number, embedding=embedding)
     elif base==152:
-        model = resnet152(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet152(pretrained=pretrained, input_frame_number=input_frame_number, embedding=embedding)
     else:
         raise ValueError
 
     return model
 if __name__ == "__main__":
 
-    input_size = (64, 128)
+    input_size = (256, 256)
     device = torch.device("cuda:0")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    net = get_resnet(18, pretrained=True, input_frame_number=1, num_classes=2)
+    net = get_resnet(18, pretrained=True, input_frame_number=1, embedding=128)
     net.eval()
 
     net.to(device)
     with torch.no_grad():
-        output = net(torch.rand(3, 3, input_size[0],input_size[1], device=device))
+        output = net(torch.rand(1, 3, input_size[0],input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
     print(f"< output shape : {output.shape} >")
     '''
-    < input size(height, width) : (512, 512) >
-    < output shape : torch.Size([1, 512, 16, 16]) >
+    < input size(height, width) : (256, 256) >
+    < output shape : torch.Size([1, 128]) >
     '''

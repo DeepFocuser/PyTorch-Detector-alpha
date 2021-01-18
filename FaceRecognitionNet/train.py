@@ -31,6 +31,7 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 def run(mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
+        embedding = 128,
         epoch=100,
         input_size=[512, 512],
         input_frame_number=2,
@@ -139,13 +140,15 @@ def run(mean=[0.485, 0.456, 0.406],
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_P" + "RES" + str(base)
     else:
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "RES" + str(base)
+    model = model + 'aug_' + str(data_augmentation)
+    model = model + "embedding" + str(embedding)
 
     # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
     weight_path = os.path.join("weights", f"{model}")
     param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.pt')
 
     start_epoch = 0
-    net = get_resnet(18, pretrained=pretrained_base, num_classes=num_classes)
+    net = get_resnet(18, pretrained=pretrained_base, embedding=embedding)
 
     # https://github.com/sksq96/pytorch-summary
     if GPU_COUNT == 0:
