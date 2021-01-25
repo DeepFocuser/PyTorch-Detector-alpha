@@ -198,6 +198,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x):
+
         # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
@@ -309,7 +310,7 @@ def get_resnet(base, pretrained=False, input_frame_number=1, embedding=128):
     return model
 if __name__ == "__main__":
 
-    input_size = (256, 256)
+    input_size = (250, 250)
     device = torch.device("cuda:0")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     net = get_resnet(18, pretrained=True, input_frame_number=1, embedding=128)

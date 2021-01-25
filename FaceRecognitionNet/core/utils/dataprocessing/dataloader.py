@@ -1,18 +1,18 @@
 from torch.utils.data import DataLoader
 
-from core.utils.dataprocessing.dataset import DetectionDataset
+from core.utils.dataprocessing.dataset import FaceDataset
 from core.utils.dataprocessing.transformer import CenterTrainTransform, CenterValidTransform
 
 
 def traindataloader(augmentation=True, path="Dataset/train",
-                    input_size=(512, 512), input_frame_number=1, batch_size=8, pin_memory=True, num_workers=4, shuffle=True,
+                    input_size=(512, 512), batch_size=8, pin_memory=True, num_workers=4, shuffle=True,
                     mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
 
     num_workers = 0 if pin_memory else num_workers
 
-    transform = CenterTrainTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std,
+    transform = CenterTrainTransform(input_size, mean=mean, std=std,
                                      augmentation=augmentation)
-    dataset = DetectionDataset(path=path, transform=transform, sequence_number=input_frame_number)
+    dataset = FaceDataset(path=path, transform=transform)
 
     dataloader = DataLoader(
         dataset,
@@ -25,13 +25,13 @@ def traindataloader(augmentation=True, path="Dataset/train",
     return dataloader, dataset
 
 
-def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_number=1,
-                    batch_size=1, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+def validdataloader(path="Dataset/valid", input_size=(512, 512), batch_size=1, pin_memory=True, num_workers=4, shuffle=True,
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
 
     num_workers = 0 if pin_memory else num_workers
 
-    transform = CenterValidTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std)
-    dataset = DetectionDataset(path=path, transform=transform, sequence_number=input_frame_number)
+    transform = CenterValidTransform(input_size, mean=mean, std=std)
+    dataset = FaceDataset(path=path, transform=transform)
 
     dataloader = DataLoader(
         dataset,
@@ -44,13 +44,13 @@ def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_num
     return dataloader, dataset
 
 
-def testdataloader(path="Dataset/test", input_size=(512, 512), input_frame_number=1, pin_memory=True,
+def testdataloader(path="Dataset/test", input_size=(512, 512), pin_memory=True,
                    num_workers=4, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
 
     num_workers = 0 if pin_memory else num_workers
 
-    transform = CenterValidTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std)
-    dataset = DetectionDataset(path=path, transform=transform, sequence_number=input_frame_number, test=True)
+    transform = CenterValidTransform(input_size, mean=mean, std=std)
+    dataset = FaceDataset(path=path, transform=transform)
 
     dataloader = DataLoader(
         dataset,
@@ -70,20 +70,34 @@ if __name__ == "__main__":
     which enables fast data transfer to CUDA-enabled GPUs.
     '''
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataloader, dataset = validdataloader(path=os.path.join(root, 'Dataset', "valid"), input_size=(256, 256),
+    # dataloader, dataset = validdataloader(path=os.path.join(root, 'Dataset', "valid"), input_size=(256, 256),
+    #                                       batch_size=8, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
+    #                                       std=[0.229, 0.224, 0.225])
+
+    dataloader, dataset = validdataloader(path=os.path.join('D:\\CASIA-WebFace', 'valid'), input_size=(256, 256),
                                           batch_size=8, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
                                           std=[0.229, 0.224, 0.225])
 
     # for문 돌리기 싫으므로, iterator로 만든
     dataloader_iter = iter(dataloader)
-    data, label, name = next(dataloader_iter)
+    anchor, positive, negative, anchor_path, positive_path, negative_path = next(dataloader_iter)
 
-    print(f"images shape : {data.shape}")
-    print(f"labels shape : {label.shape}")
-    print(f"name : {name}")
+    print(f'anchor shape: {anchor.shape}')
+    print(f'anchor path: {anchor_path}\n')
+
+    print(f'positive shape: {positive.shape}')
+    print(f'positive path: {positive_path}\n')
+
+    print(f'negative shape: {negative.shape}')
+    print(f'negative path: {negative_path}')
 
     '''
-    images shape : torch.Size([8, 3, 256, 256])
-    labels shape : torch.Size([8, 2])
-    name : ['2.tif', 'ng_03.tif', 'ng_04.tif', '14.tif', '5.tif', '4.tif', '0.tif', '3.tif']
+    anchor shape: torch.Size([8, 3, 256, 256])
+    anchor path: ['D:\\CASIA-WebFace\\valid\\0740535\\051.jpg', 'D:\\CASIA-WebFace\\valid\\1706767\\279.jpg', 'D:\\CASIA-WebFace\\valid\\6234845\\016.jpg', 'D:\\CASIA-WebFace\\valid\\0740535\\033.jpg', 'D:\\CASIA-WebFace\\valid\\5559738\\022.jpg', 'D:\\CASIA-WebFace\\valid\\0740535\\025.jpg', 'D:\\CASIA-WebFace\\valid\\1706767\\257.jpg', 'D:\\CASIA-WebFace\\valid\\6152976\\013.jpg']
+    
+    positive shape: torch.Size([8, 3, 256, 256])
+    positive path: ['D:\\CASIA-WebFace\\valid\\0740535\\005.jpg', 'D:\\CASIA-WebFace\\valid\\1706767\\131.jpg', 'D:\\CASIA-WebFace\\valid\\6234845\\017.jpg', 'D:\\CASIA-WebFace\\valid\\0740535\\027.jpg', 'D:\\CASIA-WebFace\\valid\\5559738\\007.jpg', 'D:\\CASIA-WebFace\\valid\\0740535\\022.jpg', 'D:\\CASIA-WebFace\\valid\\1706767\\260.jpg', 'D:\\CASIA-WebFace\\valid\\6152976\\035.jpg']
+    
+    negative shape: torch.Size([8, 3, 256, 256])
+    negative path: ['D:\\CASIA-WebFace\\valid\\5657590\\020.jpg', 'D:\\CASIA-WebFace\\valid\\0004883\\036.jpg', 'D:\\CASIA-WebFace\\valid\\5559738\\020.jpg', 'D:\\CASIA-WebFace\\valid\\1701859\\005.jpg', 'D:\\CASIA-WebFace\\valid\\6252408\\020.jpg', 'D:\\CASIA-WebFace\\valid\\6234845\\003.jpg', 'D:\\CASIA-WebFace\\valid\\5476978\\021.jpg', 'D:\\CASIA-WebFace\\valid\\3848020\\009.jpg']
     '''

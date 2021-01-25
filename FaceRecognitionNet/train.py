@@ -15,9 +15,8 @@ from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
 from core import PrePostNet
-from core import SoftmaxCrossEntropyLoss
+from core import TripletLoss, PairwiseDistance
 from core import get_resnet
-from core import plot_bbox
 from core import traindataloader, validdataloader
 
 logfilepath = ""
@@ -33,8 +32,7 @@ def run(mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
         embedding = 128,
         epoch=100,
-        input_size=[512, 512],
-        input_frame_number=2,
+        input_size=[256, 256],
         batch_size=16,
         batch_log=100,
         subdivision=4,
@@ -45,6 +43,8 @@ def run(mean=[0.485, 0.456, 0.406],
         optimizer="ADAM",
         save_period=5,
         load_period=10,
+        margin = 0.2,
+        semi_hard_negative=True,
         learning_rate=0.001, decay_lr=0.999, decay_step=10,
         weight_decay=0.000001,
         GPU_COUNT=0,
@@ -54,6 +54,7 @@ def run(mean=[0.485, 0.456, 0.406],
         eval_period=5,
         tensorboard=True,
         using_mlflow=True):
+
     if GPU_COUNT == 0:
         device = torch.device("cpu")
     elif GPU_COUNT == 1:
@@ -102,12 +103,11 @@ def run(mean=[0.485, 0.456, 0.406],
         logging.info("Using Data Augmentation")
 
     logging.info("training classification")
-    input_shape = (1, 3 * input_frame_number) + tuple(input_size)
+    input_shape = (1, 3) + tuple(input_size)
 
     train_dataloader, train_dataset = traindataloader(augmentation=data_augmentation,
                                                       path=train_dataset_path,
                                                       input_size=input_size,
-                                                      input_frame_number=input_frame_number,
                                                       batch_size=batch_size,
                                                       pin_memory=True,
                                                       num_workers=num_workers,
@@ -122,7 +122,6 @@ def run(mean=[0.485, 0.456, 0.406],
     if valid_list:
         valid_dataloader, valid_dataset = validdataloader(path=valid_dataset_path,
                                                           input_size=input_size,
-                                                          input_frame_number=input_frame_number,
                                                           batch_size=valid_size,
                                                           num_workers=num_workers,
                                                           pin_memory=True,
@@ -131,9 +130,6 @@ def run(mean=[0.485, 0.456, 0.406],
         if valid_update_number_per_epoch < 1:
             logging.warning("valid batch size가 데이터 수보다 큼")
             exit(0)
-
-    num_classes = train_dataset.num_class  # 클래스 수
-    name_classes = train_dataset.classes
 
     optimizer = optimizer.upper()
     if pretrained_base:
@@ -201,7 +197,8 @@ def run(mean=[0.485, 0.456, 0.406],
     if isinstance(device, (list, tuple)):
         net = DataParallel(net, device_ids=device, output_device=context, dim=0)
 
-    SCELoss = SoftmaxCrossEntropyLoss(axis=-1, sparse_label=False, from_logits=False)
+    PDLoss = PairwiseDistance(p = 2.0)
+    TLLoss = TripletLoss(margin=margin)
 
     # optimizer
     # https://pytorch.org/docs/master/optim.html?highlight=lr%20sche#torch.optim.lr_scheduler.CosineAnnealingLR
@@ -225,13 +222,15 @@ def run(mean=[0.485, 0.456, 0.406],
         time_stamp = time.time()
 
         # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
-        for batch_count, (image, label, _) in enumerate(
+        for batch_count, (anchor, positive, negative, _, _, _) in enumerate(
                 train_dataloader,
                 start=1):
 
             trainer.zero_grad()
 
-            image = image.to(context)
+            anchor = anchor.to(context)
+            positive = positive.to(context)
+            negative = negative.to(context)
 
             '''
             이렇게 하는 이유?
@@ -239,35 +238,63 @@ def run(mean=[0.485, 0.456, 0.406],
             gpu>=1 인 경우 net = DataParallel(net, device_ids=device, output_device=context, dim=0) 에서 
             output_device - gradient가 계산되는 곳을 context로 했기 때문에 아래의 target들도 context로 지정해줘야 함
             '''
-            label = label.to(context)
-            image_split = torch.split(image, chunk, dim=0)
-            label_split = torch.split(label, chunk, dim=0)
+            anchor_split = torch.split(anchor, chunk, dim=0)
+            positive_split = torch.split(positive, chunk, dim=0)
+            negative_split = torch.split(negative, chunk, dim=0)
 
             losses = []
             total_loss = 0.0
 
-            for image_part, label_part in zip(
-                    image_split,
-                    label_split):
-                pred = net(image_part)
+            for anchor_part, positive_part, negative_part in zip(
+                    anchor_split,
+                    positive_split,
+                    negative_split):
+
+                anchor_pred = net(anchor_part)
+                positive_pred = net(positive_part)
+                negative_pred = net(negative_part)
+
                 '''
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
                 Loss 구현시 고려해야 한다.(mean 모드) 
                 '''
-                loss = torch.div(SCELoss(pred, label), subdivision)
-                losses.append(loss.item())
+                ap_select = PDLoss(anchor_pred, positive_pred)
+                an_select = PDLoss(anchor_pred, negative_pred)
 
+                if semi_hard_negative:
+                    # Semi-Hard Negative triplet selection
+                    # (negative_distance - positive_distance < margin) AND (positive_distance < negative_distance)
+                    # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
+                    first_condition = (an_select - ap_select) < margin
+                    second_condition = ap_select < an_select
+                    all = (torch.logical_and(first_condition, second_condition))
+                    valid_triplets = torch.where(all == 1)
+                else:
+                    # Hard Negative triplet selection
+                    # (negative_distance - positive_distance < margin)
+                    # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
+                    all = (an_select - ap_select) < margin
+                    valid_triplets = torch.where(all == 1)
+
+                triplet_loss = TLLoss(anchor_pred[valid_triplets],
+                                      positive_pred[valid_triplets],
+                                      negative_pred[valid_triplets])
+                loss = torch.div(triplet_loss, subdivision)
+                losses.append(loss.item())
                 total_loss = total_loss + loss
 
-            total_loss.backward()
-            trainer.step()
-            lr_sch.step()
-
-            loss_sum += sum(losses)
+            if total_loss.isnan():
+                logging.info("loss is nan")
+                loss_sum = 0
+            else:
+                total_loss.backward()
+                trainer.step()
+                lr_sch.step()
+                loss_sum += sum(losses)
 
             if batch_count % batch_log == 0:
                 logging.info(f'[Epoch {i}][Batch {batch_count}/{train_update_number_per_epoch}]'
-                             f'[Speed {image.shape[0] / (time.time() - time_stamp):.3f} samples/sec]'
+                             f'[Speed {(anchor.shape[0]*3) / (time.time() - time_stamp):.3f} samples/sec]'
                              f'[Lr = {lr_sch.get_last_lr()}]'
                              f'[loss = {sum(losses):.3f}]')
             time_stamp = time.time()
@@ -283,7 +310,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 os.makedirs(weight_path)
 
             module = net.module if isinstance(device, (list, tuple)) else net
-            pretnet = PrePostNet(net=module, input_frame_number=input_frame_number)  # 새로운 객체가 생성
+            pretnet = PrePostNet(net=module)  # 새로운 객체가 생성
 
             try:
                 torch.save({
@@ -292,14 +319,13 @@ def run(mean=[0.485, 0.456, 0.406],
 
                 # torch.jit.trace() 보다는 control-flow 연산 적용이 가능한 torch.jit.script() 을 사용하자
                 # torch.jit.script
+
                 script = torch.jit.script(module)
                 script.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
 
                 script = torch.jit.script(pretnet)
                 script.save(os.path.join(weight_path, f'{model}-prepost-{i:04d}.jit'))
 
-                # # torch.jit.trace - 안 써짐
-                # 오류 : Expected object of device type cuda but got device type cpu for argument #2 'other' in call to _th_fmod
                 # trace = torch.jit.trace(prepostnet, torch.rand(input_shape[0], input_shape[1], input_shape[2], input_shape[3], device=context))
                 # trace.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
 
@@ -311,103 +337,97 @@ def run(mean=[0.485, 0.456, 0.406],
         if i % eval_period == 0 and valid_list:
 
 
-            numerator = 0
-            denominator = 0
             loss_sum = 0
 
             net.eval()
             # loss 구하기
-            for image, label, _ in valid_dataloader:
-                image = image.to(context)
-                label = label.to(context)
+            for (anchor, positive, negative, _, _, _) in valid_dataloader:
+                anchor = anchor.to(context)
+                positive = positive.to(context)
+                negative = negative.to(context)
 
                 with torch.no_grad():
-                    pred = net(image)
-                    pred_softmax = torch.softmax(pred, dim=-1)
+                    anchor_pred = net(anchor)
+                    positive_pred = net(positive)
+                    negative_pred = net(negative)
 
-                    output_loss = SCELoss(pred, label)
-                    loss_sum += output_loss.item()
+                    ap_select = PDLoss(anchor_pred, positive_pred)
+                    an_select = PDLoss(anchor_pred, negative_pred)
 
-                # accuracy
-                pred_argmax = torch.argmax(pred_softmax, dim=1)  # (batch_size , num_outputs)
-                pred_argmax = pred_argmax.detach().cpu().numpy().copy()
-                label_argmax = torch.argmax(label, dim=1)  # (batch_size , num_outputs)
-                label_argmax = label_argmax.detach().cpu().numpy().copy()
-                numerator += sum(pred_argmax == label_argmax)
-                denominator += image.shape[0]
+                    if semi_hard_negative:
+                        # Semi-Hard Negative triplet selection
+                        # (negative_distance - positive_distance < margin) AND (positive_distance < negative_distance)
+                        # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
+                        first_condition = (an_select - ap_select) < margin
+                        second_condition = ap_select < an_select
+                        all = (torch.logical_and(first_condition, second_condition))
+                        valid_triplets = torch.where(all == 1)
+                    else:
+                        # Hard Negative triplet selection
+                        # (negative_distance - positive_distance < margin)
+                        # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
+                        all = (an_select - ap_select) < margin
+                        valid_triplets = torch.where(all == 1)
+
+                    triplet_loss = TLLoss(anchor_pred[valid_triplets],
+                                          positive_pred[valid_triplets],
+                                          negative_pred[valid_triplets])
+                    loss_sum += triplet_loss.item()
 
             valid_loss_mean = np.divide(loss_sum, valid_update_number_per_epoch)
-
-            # confusion matrix
-            accuracy = round((numerator / denominator) * 100, 2)
             logging.info(
-                f"accuracy : {accuracy}% / "
                 f"valid loss : {valid_loss_mean}")
 
             if tensorboard:
 
                 batch_image = []
-                ground_truth_colors = {}
-                for k in range(num_classes):
-                    ground_truth_colors[k] = (0, 1, 0) # RGB
-
                 dataloader_iter = iter(valid_dataloader)
-                image, label, _ = next(dataloader_iter)
-                image = image.to(context)
-                label = label.to(context)
+                anchor, positive, negative, _, _, _ = next(dataloader_iter)
+                anchor = anchor.to(context)
+                positive = positive.to(context)
+                negative = negative.to(context)
 
                 with torch.no_grad():
-                    pred = net(image)
-                    pred = torch.softmax(pred, dim=-1)
 
-                for img, pd, lb in zip(image, pred, label):
+                    anchor_pred = net(anchor)
+                    positive_pred = net(positive)
+                    negative_pred = net(negative)
 
-                    split_img = torch.split(img, 3, dim=0) # numpy split과 다르네...
-                    hconcat_image_list = []
+                    for anc, pos, neg in zip(anchor_pred, positive_pred, negative_pred):
 
-                    for j, ig in enumerate(split_img):
+                        anc = anc.permute((1, 2, 0)) * torch.tensor(std, device=anc.device) + torch.tensor(mean, device=anc.device)
+                        anc = (anc * 255).clamp(0, 255)
+                        anc = anc.to(torch.uint8)
+                        anc = anc.detach().cpu().numpy().copy()
 
-                        ig = ig.permute((1, 2, 0)) * torch.tensor(std, device=ig.device) + torch.tensor(mean, device=ig.device)
-                        ig = (ig * 255).clamp(0, 255)
-                        ig = ig.to(torch.uint8)
-                        ig = ig.detach().cpu().numpy().copy()
+                        pos = pos.permute((1, 2, 0)) * torch.tensor(std, device=pos.device) + torch.tensor(mean, device=pos.device)
+                        pos = (pos * 255).clamp(0, 255)
+                        pos = pos.to(torch.uint8)
+                        pos = pos.detach().cpu().numpy().copy()
 
-                        if j == len(split_img) - 1:  # 마지막 이미지
+                        neg = neg.permute((1, 2, 0)) * torch.tensor(std, device=neg.device) + torch.tensor(mean, device=neg.device)
+                        neg = (neg * 255).clamp(0, 255)
+                        neg = neg.to(torch.uint8)
+                        neg = neg.detach().cpu().numpy().copy()
 
-                            # ground truth box 그리기
-                            index=torch.argmax(lb)
-                            ground_truth = plot_bbox(ig, score=None, label = name_classes[index],
-                                                     reverse_rgb=False,
-                                                     class_names=valid_dataset.classes,
-                                                     colors=ground_truth_colors, gt = True)
-                            # prediction box 그리기
-                            index = torch.argmax(pd)
-                            score = torch.max(pd)
-                            prediction_box = plot_bbox(ground_truth, score=score, label=name_classes[index],
-                                                       reverse_rgb=False,
-                                                       class_names=valid_dataset.classes)
-                            hconcat_image_list.append(prediction_box)
-                        else:
-                            hconcat_image_list.append(ig)
+                        hconcat_images = np.concatenate([anc, pos, neg], axis=1)
 
-                    hconcat_images = np.concatenate(hconcat_image_list, axis=1)
+                        # Tensorboard에 그리기 위해 (height, width, channel) -> (channel, height, width) 를한다.
+                        hconcat_images = np.transpose(hconcat_images, axes=(2, 0, 1))
+                        batch_image.append(hconcat_images)  # (batch, channel, height, width)
 
-                    # Tensorboard에 그리기 위해 (height, width, channel) -> (channel, height, width) 를한다.
-                    hconcat_images = np.transpose(hconcat_images, axes=(2, 0, 1))
-                    batch_image.append(hconcat_images)  # (batch, channel, height, width)
+                    img_grid = torchvision.utils.make_grid(torch.as_tensor(batch_image), nrow=1)
+                    summary.add_image(tag="valid_result", img_tensor=img_grid, global_step=i)
 
-                img_grid = torchvision.utils.make_grid(torch.as_tensor(batch_image), nrow=1)
-                summary.add_image(tag="valid_result", img_tensor=img_grid, global_step=i)
+                    summary.add_scalar(tag="loss/train_loss_mean",
+                                       scalar_value=train_loss_mean,
+                                       global_step=i)
+                    summary.add_scalar(tag="loss/valid_loss_mean",
+                                       scalar_value=valid_loss_mean,
+                                       global_step=i)
 
-                summary.add_scalar(tag="loss/train_loss_mean",
-                                   scalar_value=train_loss_mean,
-                                   global_step=i)
-                summary.add_scalar(tag="loss/valid_loss_mean",
-                                   scalar_value=valid_loss_mean,
-                                   global_step=i)
-
-                for name, param in net.named_parameters():
-                    summary.add_histogram(tag=name, values=param, global_step=i)
+                    for name, param in net.named_parameters():
+                        summary.add_histogram(tag=name, values=param, global_step=i)
 
     end_time = time.time()
     learning_time = end_time - start_time
@@ -423,7 +443,6 @@ if __name__ == "__main__":
         std=[0.229, 0.224, 0.225],
         epoch=100,
         input_size=[512, 512],
-        input_frame_number=2,
         batch_size=16,
         batch_log=100,
         subdivision=4,
@@ -434,6 +453,8 @@ if __name__ == "__main__":
         optimizer="ADAM",
         save_period=5,
         load_period=10,
+        margin=0.2,
+        semi_hard_negative=True,
         learning_rate=0.001, decay_lr=0.999, decay_step=10,
         weight_decay=0.000001,
         GPU_COUNT=0,

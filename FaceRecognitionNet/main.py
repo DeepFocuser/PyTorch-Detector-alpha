@@ -1,8 +1,17 @@
+'''
+Face recognition 정의
+
+참고 사이트
+https://machinelearningmastery.com/introduction-to-deep-learning-for-face-recognition/
+https://tech.kakaoenterprise.com/63
+
+Face recognition is a broad problem of identifying or verifying people in photographs and videos.
+'''
 import mlflow as ml
 import torch
 import yaml
 
-import test
+import test_verification
 import train
 
 # nms 구현하면 끝
@@ -13,16 +22,12 @@ parser = stream['Dataset']
 train_dataset_path = parser['train']
 valid_dataset_path = parser['valid']
 test_dataset_path = parser['test']
+test_method = parser['test_method']
+threshold = parser['threshold']
 test_weight_path = parser['test_weight_path']
-
 test_save_path = parser['save_path']
 save_flag = parser['save_flag']
 show_flag = parser['show_flag']
-video_flag = parser['video_flag']
-video_min = parser['video_min']
-video_max = parser['video_max']
-video_fps = parser['video_fps']
-video_name = parser['video_name']
 
 # model
 parser = stream['model']
@@ -41,6 +46,8 @@ parser = stream['hyperparameters']
 image_mean = parser["image_mean"]
 image_std = parser["image_std"]
 embedding = parser["embedding"]
+margin = parser["margin"]
+semi_hard_negative = parser["semi_hard_negative"]
 
 epoch = parser["epoch"]
 batch_size = parser["batch_size"]
@@ -87,6 +94,8 @@ if __name__ == "__main__":
             ml.log_param("image mean RGB", image_mean)
             ml.log_param("image std RGB", image_std)
             ml.log_param("embedding vector size", embedding)
+            ml.log_param("margin", margin)
+            ml.log_param("semi hard negative", semi_hard_negative)
 
             ml.log_param("height", input_size[0])
             ml.log_param("width", input_size[1])
@@ -113,9 +122,10 @@ if __name__ == "__main__":
         train.run(mean=image_mean,
                   std=image_std,
                   embedding=embedding,
+                  margin=margin,
+                  semi_hard_negative=semi_hard_negative,
                   epoch=epoch,
                   input_size=input_size,
-                  input_frame_number=input_frame_number,
                   batch_size=batch_size,
                   batch_log=batch_log,
                   subdivision=subdivision,
@@ -144,17 +154,18 @@ if __name__ == "__main__":
     else:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-        test.run(input_frame_number=input_frame_number,
-                 mean=image_mean,
-                 std=image_std,
-                 load_name=load_name, load_period=load_period, GPU_COUNT=GPU_COUNT,
-                 test_weight_path=test_weight_path,
-                 test_dataset_path=test_dataset_path, num_workers=num_workers,
-                 test_save_path=test_save_path,
-                 show_flag=show_flag,
-                 save_flag=save_flag,
-                 video_flag=video_flag,
-                 video_min = video_min,
-                 video_max = video_max,
-                 video_fps = video_fps,
-                 video_name = video_name)
+
+        if test_method == "verification":
+            test_verification.run(mean=image_mean,
+                                  std=image_std,
+                                  threshold = threshold,
+                                  load_name=load_name, load_period=load_period, GPU_COUNT=GPU_COUNT,
+                                  test_weight_path=test_weight_path,
+                                  test_dataset_path=test_dataset_path, num_workers=num_workers,
+                                  test_save_path=test_save_path,
+                                  show_flag=show_flag,
+                                  save_flag=save_flag)
+        elif test_method == "identification":
+            raise AttributeError
+        else:
+            raise AttributeError
