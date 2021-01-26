@@ -13,7 +13,6 @@ if os.path.isfile(logfilepath):
     os.remove(logfilepath)
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
-
 # nograd, model.eval() 하기
 def run(mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
@@ -104,8 +103,8 @@ def run(mean=[0.485, 0.456, 0.406],
             positive_pred = net(positive)
             negative_pred = net(negative)
 
-            distance_of_ap = 0
-            distance_of_an = 0
+            distance_of_ap = torch.nn.functional.pairwise_distance(anchor_pred, positive_pred, p=2.0)
+            distance_of_an = torch.nn.functional.pairwise_distance(anchor_pred, negative_pred, p=2.0)
 
             # l2 distance
             anchor = cv2.imread(anchor_path, flags=-1)
@@ -117,12 +116,12 @@ def run(mean=[0.485, 0.456, 0.406],
             negative = cv2.imread(negative_path, flags=-1)
             negative = cv2.resize(negative, dsize=(width, height), interpolation=1)
 
-            if distance_of_ap < threshold:
+            if distance_of_ap.item() < threshold:
                 ap_color = (0, 255, 0)
             else:
                 ap_color = (0, 0, 255)
 
-            if distance_of_an < threshold:
+            if distance_of_an.item() < threshold:
                 an_color = (0, 0, 255)
             else:
                 an_color = (0, 255, 0)
