@@ -3,8 +3,8 @@ import os
 
 import torch
 
-from core import testdataloader
 from core import PrePostNet
+from core import testdataloader
 
 logfilepath = ""
 if os.path.isfile(logfilepath):
@@ -12,10 +12,9 @@ if os.path.isfile(logfilepath):
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 
-def export(input_frame_number = 1,
-           originpath="weights",
+def export(originpath="weights",
            newpath="jitweights",
-           load_name="608_608_ADAM_RES18",
+           load_name="250_250_ADAM_RES18",
            load_period=1):
 
     origin_weight_path = os.path.join(originpath, load_name)
@@ -34,7 +33,7 @@ def export(input_frame_number = 1,
 
     _, test_dataset = testdataloader()
 
-    prepostnet = PrePostNet(net=net, input_frame_number=input_frame_number)  # 새로운 객체가 생성
+    prepostnet = PrePostNet(net=net)  # 새로운 객체가 생성
 
     try:
         script = torch.jit.script(prepostnet)
@@ -47,8 +46,7 @@ def export(input_frame_number = 1,
 
 
 if __name__ == "__main__":
-    export(input_frame_number = 1,
-           originpath="weights",
+    export(originpath="weights",
            newpath="jitweights",
            load_name="608_608_ADAM_PCENTER_RES18",
            load_period=1)

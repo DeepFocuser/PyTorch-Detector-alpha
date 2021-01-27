@@ -4,6 +4,7 @@ import os
 import platform
 import time
 
+import cv2
 import mlflow as ml
 import numpy as np
 import torch
@@ -30,6 +31,7 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
 def run(mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
+        threshold =1.0,
         embedding = 128,
         epoch=100,
         input_size=[256, 256],
@@ -136,8 +138,10 @@ def run(mean=[0.485, 0.456, 0.406],
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_P" + "RES" + str(base)
     else:
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "RES" + str(base)
-    model = model + 'aug_' + str(data_augmentation)
-    model = model + "embedding" + str(embedding)
+
+    if data_augmentation:
+        model = model + '_aug'
+    model = model + "_embedding" + str(embedding)
 
     # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
     weight_path = os.path.join("weights", f"{model}")
@@ -285,7 +289,8 @@ def run(mean=[0.485, 0.456, 0.406],
 
             if total_loss.isnan():
                 logging.info("loss is nan")
-                loss_sum = 0
+                loss_sum += 0
+                continue
             else:
                 total_loss.backward()
                 trainer.step()
@@ -336,10 +341,10 @@ def run(mean=[0.485, 0.456, 0.406],
 
         if i % eval_period == 0 and valid_list:
 
-
             loss_sum = 0
 
             net.eval()
+
             # loss 구하기
             for (anchor, positive, negative, _, _, _) in valid_dataloader:
                 anchor = anchor.to(context)
@@ -382,7 +387,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
                 batch_image = []
                 dataloader_iter = iter(valid_dataloader)
-                anchor, positive, negative, _, _, _ = next(dataloader_iter)
+                anchor, positive, negative, anchor_path, positive_path, negative_path = next(dataloader_iter)
                 anchor = anchor.to(context)
                 positive = positive.to(context)
                 negative = negative.to(context)
@@ -393,24 +398,45 @@ def run(mean=[0.485, 0.456, 0.406],
                     positive_pred = net(positive)
                     negative_pred = net(negative)
 
-                    for anc, pos, neg in zip(anchor_pred, positive_pred, negative_pred):
+                    distance_of_ap_pred = torch.nn.functional.pairwise_distance(anchor_pred, positive_pred, p=2.0)
+                    distance_of_an_pred = torch.nn.functional.pairwise_distance(anchor_pred, negative_pred, p=2.0)
 
-                        anc = anc.permute((1, 2, 0)) * torch.tensor(std, device=anc.device) + torch.tensor(mean, device=anc.device)
-                        anc = (anc * 255).clamp(0, 255)
-                        anc = anc.to(torch.uint8)
-                        anc = anc.detach().cpu().numpy().copy()
+                    for anc, pos, neg, anc_path, pos_path, neg_path, distance_of_ap, distance_of_an in zip(anchor_pred, positive_pred, negative_pred,
+                                                                                                           anchor_path, positive_path, negative_path,
+                                                                                                           distance_of_ap_pred, distance_of_an_pred):
 
-                        pos = pos.permute((1, 2, 0)) * torch.tensor(std, device=pos.device) + torch.tensor(mean, device=pos.device)
-                        pos = (pos * 255).clamp(0, 255)
-                        pos = pos.to(torch.uint8)
-                        pos = pos.detach().cpu().numpy().copy()
+                        anchor_img = cv2.imread(anc_path, flags=-1)
+                        anchor_img = cv2.resize(anchor_img, dsize=(input_size[1], input_size[0]), interpolation=1)
+                        anchor_img = cv2.cvtColor(anchor_img, cv2.COLOR_BGR2RGB)
 
-                        neg = neg.permute((1, 2, 0)) * torch.tensor(std, device=neg.device) + torch.tensor(mean, device=neg.device)
-                        neg = (neg * 255).clamp(0, 255)
-                        neg = neg.to(torch.uint8)
-                        neg = neg.detach().cpu().numpy().copy()
+                        positive_img = cv2.imread(pos_path, flags=-1)
+                        positive_img = cv2.resize(positive_img, dsize=(input_size[1], input_size[0]), interpolation=1)
+                        positive_img = cv2.cvtColor(positive_img, cv2.COLOR_BGR2RGB)
 
-                        hconcat_images = np.concatenate([anc, pos, neg], axis=1)
+                        negative_img = cv2.imread(neg_path, flags=-1)
+                        negative_img = cv2.resize(negative_img, dsize=(input_size[1], input_size[0]), interpolation=1)
+                        negative_img = cv2.cvtColor(negative_img, cv2.COLOR_BGR2RGB)
+
+                        distance_of_ap = distance_of_ap.item()
+                        distance_of_an = distance_of_an.item()
+
+                        if distance_of_ap < threshold:
+                            ap_color = (0, 255, 0)
+                        else:
+                            ap_color = (255, 0, 0)
+
+                        if distance_of_an < threshold:
+                            an_color = (255, 0, 0)
+                        else:
+                            an_color = (0, 255, 0)
+
+                        ap_rect = cv2.rectangle(np.ones_like(anchor_img), (0, 0), (input_size[1], input_size[0]), ap_color, thickness=-1)
+                        an_rect = cv2.rectangle(np.ones_like(anchor_img), (0, 0), (input_size[1], input_size[0]), an_color, thickness=-1)
+                        ap_rect = cv2.putText(ap_rect, "Dist : " + str(round(distance_of_ap, 3)), (input_size[1]//8, input_size[0]//2), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 1, cv2.LINE_AA)
+                        an_rect = cv2.putText(an_rect, "Dist : " + str(round(distance_of_an, 3)), (input_size[1]//8, input_size[0]//2), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 1, cv2.LINE_AA)
+
+                        hconcat_images = np.concatenate([anchor_img, positive_img, ap_rect,
+                                                         anchor_img, negative_img, an_rect], axis=1)
 
                         # Tensorboard에 그리기 위해 (height, width, channel) -> (channel, height, width) 를한다.
                         hconcat_images = np.transpose(hconcat_images, axes=(2, 0, 1))
@@ -441,6 +467,7 @@ def run(mean=[0.485, 0.456, 0.406],
 if __name__ == "__main__":
     run(mean=[0.485, 0.456, 0.406],
         std=[0.229, 0.224, 0.225],
+        threshold=1.0,
         epoch=100,
         input_size=[512, 512],
         batch_size=16,

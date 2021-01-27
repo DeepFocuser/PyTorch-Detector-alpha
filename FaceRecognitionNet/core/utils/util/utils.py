@@ -25,7 +25,6 @@ class PrePostNet(nn.Module):
         x = torch.div(x, self._scale.to(x.device))
         x = x.permute(0, 3, 1, 2)
         x = self._net(x)
-        x = torch.softmax(x, dim=-1)
         return x
 
 def face_aligner(images, boxes, landmarks, margin_xyxy=(21, 21, 21, 21), RotationMatrix_Center="boxcenter", reverse_rgb=True, image_show=True):

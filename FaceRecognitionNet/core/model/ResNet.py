@@ -214,7 +214,7 @@ class ResNet(nn.Module):
         x = torch.flatten(x, 1)
         x = self.fc_new(x)
         x = self.relu_new(x)
-        x = nn.functional.normalize(x, p=2, dim=1)
+        x = nn.functional.normalize(x, p=2.0, dim=1)
 
         return x
 

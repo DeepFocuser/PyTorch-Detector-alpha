@@ -36,7 +36,6 @@ load_name = parser["load_name"]
 save_period = parser["save_period"]
 load_period = parser["load_period"]
 input_size = parser["input_size"]
-input_frame_number = parser['input_frame_number']
 base = parser["ResNetbase"]
 pretrained_base = parser["pretrained_base"]
 
@@ -93,13 +92,13 @@ if __name__ == "__main__":
             ml.log_param("image range before normalization", "0~1")
             ml.log_param("image mean RGB", image_mean)
             ml.log_param("image std RGB", image_std)
+            ml.log_param("verification threshold", threshold)
             ml.log_param("embedding vector size", embedding)
             ml.log_param("margin", margin)
             ml.log_param("semi hard negative", semi_hard_negative)
 
             ml.log_param("height", input_size[0])
             ml.log_param("width", input_size[1])
-            ml.log_param("sequence number", input_frame_number)
             ml.log_param("pretrained_base", pretrained_base)
             ml.log_param("train dataset path", train_dataset_path)
             ml.log_param("valid dataset path", valid_dataset_path)
@@ -121,6 +120,7 @@ if __name__ == "__main__":
         torch.backends.cudnn.benchmark = True # 그래프가 변하는 경우 학습 속도 느려질수 있음.
         train.run(mean=image_mean,
                   std=image_std,
+                  threshold = threshold,
                   embedding=embedding,
                   margin=margin,
                   semi_hard_negative=semi_hard_negative,

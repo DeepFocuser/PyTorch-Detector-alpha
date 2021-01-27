@@ -3,6 +3,7 @@ import os
 import platform
 
 import cv2
+import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -107,30 +108,43 @@ def run(mean=[0.485, 0.456, 0.406],
             distance_of_an = torch.nn.functional.pairwise_distance(anchor_pred, negative_pred, p=2.0)
 
             # l2 distance
-            anchor = cv2.imread(anchor_path, flags=-1)
-            anchor = cv2.resize(anchor, dsize=(width, height), interpolation=1)
+            anchor_img = cv2.imread(anchor_path, flags=-1)
+            anchor_img = cv2.resize(anchor_img, dsize=(width, height), interpolation=1)
 
-            positive = cv2.imread(positive_path, flags=-1)
-            positive = cv2.resize(positive, dsize=(width, height), interpolation=1)
+            positive_img = cv2.imread(positive_path, flags=-1)
+            positive_img = cv2.resize(positive_img, dsize=(width, height), interpolation=1)
 
-            negative = cv2.imread(negative_path, flags=-1)
-            negative = cv2.resize(negative, dsize=(width, height), interpolation=1)
+            negative_img = cv2.imread(negative_path, flags=-1)
+            negative_img = cv2.resize(negative_img, dsize=(width, height), interpolation=1)
 
-            if distance_of_ap.item() < threshold:
+            distance_of_ap = distance_of_ap.item()
+            distance_of_an = distance_of_an.item()
+
+            if distance_of_ap < threshold:
                 ap_color = (0, 255, 0)
             else:
                 ap_color = (0, 0, 255)
 
-            if distance_of_an.item() < threshold:
+            if distance_of_an < threshold:
                 an_color = (0, 0, 255)
             else:
                 an_color = (0, 255, 0)
 
-            ap_catimage = cv2.hconcat([anchor, positive])
-            an_catimage = cv2.hconcat([anchor, negative])
+            ap_rect = cv2.rectangle(np.ones_like(anchor_img), (0, 0), (width, height), ap_color,
+                                    thickness=-1)
+            an_rect = cv2.rectangle(np.ones_like(anchor_img), (0, 0), (width, height), an_color,
+                                    thickness=-1)
 
-            ap_catimage = cv2.rectangle(ap_catimage, (0, 0), (width*2, height), ap_color, thickness=3)
-            an_catimage = cv2.rectangle(an_catimage, (0, 0), (width*2, height), an_color, thickness=3)
+            ap_rect = cv2.putText(ap_rect, "Dist : " + str(round(distance_of_ap, 3)), (width // 8, height // 2),
+                                  cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 1, cv2.LINE_AA)
+            an_rect = cv2.putText(an_rect, "Dist : " + str(round(distance_of_an, 3)), (width // 8, height // 2),
+                                  cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 1, cv2.LINE_AA)
+
+            ap_catimage = cv2.hconcat([anchor_img, positive_img, ap_rect])
+            an_catimage = cv2.hconcat([anchor_img, negative_img, an_rect])
+
+            logging.info(f"distance_of_ap : {distance_of_ap}")
+            logging.info(f"distance_of_an : {distance_of_an}")
 
             if show_flag:
                 catimage = cv2.vconcat([ap_catimage, an_catimage])

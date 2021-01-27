@@ -1,12 +1,12 @@
 Dataset:
   # 사용 데이터셋 : The CASIA dataset is annotated with 10,575 unique people with 494,414 images in total.
-  train: Dataset/train
+  train: Dataset/valid
   valid: Dataset/valid
   test: Dataset/valid
 
-  # Test
+  # Valid and Test
   test_method: verification
-  threshold: 1
+  threshold: 1.1
   test_weight_path: weights
   save_flag: True
   save_path: result
@@ -16,11 +16,10 @@ model:
 
   # Re training or Test
   load_name: 250_250_ADAM_PRES18 # training = False,
-  load_period: 70
+  load_period: 7
 
-  save_period: 10
+  save_period: 1
   input_size: [250, 250] # height, width
-  input_frame_number: 1
   ResNetbase: 18 # resnet base version : 18, 34, 50, 101, 152
   pretrained_base: True #  input_frame_number = 1 일 때만
 
@@ -30,12 +29,12 @@ hyperparameters:
   image_mean: [0.485, 0.456, 0.406] # R G B
   image_std:  [0.229, 0.224, 0.225] # R G B
   embedding: 128
-  margin: 0.2
+  margin: 0.21
   semi_hard_negative: True
 
   # 학습 관련
-  epoch: 70
-  batch_size: 16
+  epoch: 7
+  batch_size: 32
   batch_log: 100
   subdivision: 1
   data_augmentation: False
@@ -48,8 +47,8 @@ hyperparameters:
 context:
   using_cuda: True
 validation:
-  valid_size: 8
-  eval_period: 10
+  valid_size: 32
+  eval_period: 1
   tensorboard: True
 mlflow:
   using_mlflow: True
