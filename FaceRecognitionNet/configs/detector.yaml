@@ -1,6 +1,6 @@
 Dataset:
   # 사용 데이터셋 : The CASIA dataset is annotated with 10,575 unique people with 494,414 images in total.
-  train: Dataset/valid
+  train: Dataset/train
   valid: Dataset/valid
   test: Dataset/valid
 
