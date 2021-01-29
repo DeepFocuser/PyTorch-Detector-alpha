@@ -1,7 +1,6 @@
 .idea
 *.pth
 *.pt
-Dataset*
 torchboard
 mlruns
 __pycache__
