@@ -6,7 +6,7 @@ Dataset:
 
   # Valid and Test
   test_method: verification
-  threshold: 1.1
+  threshold: 0.7
   test_weight_path: weights
   save_flag: True
   save_path: result

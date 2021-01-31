@@ -21,15 +21,18 @@ class FaceDataset(Dataset):
         Path to input image directory.
     transform : object
     """
-    def __init__(self, path='Dataset/train', transform=None):
+    def __init__(self, path='Dataset/train', same_identity_per_batch=1, transform=None):
         super(FaceDataset, self).__init__()
 
         self._path = path
         self._name = os.path.basename(path)
         self._folder_list = glob.glob(os.path.join(path, "*"))
+        self._same_identity_per_batch = same_identity_per_batch
         self._transform = transform
         self._items = []
         self._make_item_list()
+        self._count = 0
+        self._pin = None
 
     def key_func(self, path):
         return path
@@ -46,24 +49,26 @@ class FaceDataset(Dataset):
 
     def __getitem__(self, idx):
 
-        anchor_path = self._items[idx]
-        anchor_folder, _ = os.path.split(anchor_path)
-        positive_candidate_list = glob.glob(os.path.join(anchor_folder, "*"))
-        random.shuffle(positive_candidate_list)
+        '''
+        In our experiments we sample the training data
+        such that around 40 faces are selected per identity per minibatch.
+        Additionally, randomly sampled negative faces are
+        added to each mini-batch.
+        '''
 
-        for positive_candidate in positive_candidate_list:
-            if positive_candidate == anchor_path:
-                continue
-            else:
-                positive_path = positive_candidate
-                break
+        if self._count % self._same_identity_per_batch == 0:
+            self._pin = idx
 
-        dataset_folder, _ = os.path.split(anchor_folder)
+        anchor_positive_folder, _ = os.path.split(self._items[self._pin])
+        anchor_positive_candidate_list = glob.glob(os.path.join(anchor_positive_folder, "*"))
+        anchor_path, positive_path = random.sample(anchor_positive_candidate_list, 2)
+
+        dataset_folder, _ = os.path.split(anchor_positive_folder)
         dataset_path_list = glob.glob(os.path.join(dataset_folder, "*"))
         random.shuffle(dataset_path_list)
 
         for dataset_path in dataset_path_list:
-            if dataset_path == anchor_folder:
+            if dataset_path == anchor_positive_folder:
                 continue
             else:
                 negative_folder = dataset_path
@@ -78,6 +83,8 @@ class FaceDataset(Dataset):
         anchor = cv2.cvtColor(anchor, cv2.COLOR_BGR2RGB)
         positive = cv2.cvtColor(positive, cv2.COLOR_BGR2RGB)
         negative = cv2.cvtColor(negative, cv2.COLOR_BGR2RGB)
+
+        self._count+=1
 
         if self._transform:
             return self._transform(anchor, positive, negative) + (anchor_path, positive_path, negative_path)
@@ -95,7 +102,7 @@ class FaceDataset(Dataset):
 if __name__ == "__main__":
 
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataset = FaceDataset(path=os.path.join('D:\\CASIA-WebFace', 'valid'))
+    dataset = FaceDataset(path=os.path.join('D:\CASIA-WebFace', 'valid'))
 
     length = len(dataset)
     anchor, positive, negative, anchor_path, positive_path, negative_path = dataset[0]
@@ -116,4 +123,5 @@ if __name__ == "__main__":
     positive shape: (250, 250, 3)
     positive path: D:\CASIA-WebFace\valid\0004844\024.jpg
     negative shape: (250, 250, 3)
-    negative path: D:\CASIA-WebFace\valid\1708957\003.jpg'''
+    negative path: D:\CASIA-WebFace\valid\1708957\003.jpg
+    '''

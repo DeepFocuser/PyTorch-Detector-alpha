@@ -12,7 +12,7 @@ def traindataloader(augmentation=True, path="Dataset/train",
 
     transform = CenterTrainTransform(input_size, mean=mean, std=std,
                                      augmentation=augmentation)
-    dataset = FaceDataset(path=path, transform=transform)
+    dataset = FaceDataset(path=path, same_identity_per_batch=1, transform=transform)
 
     dataloader = DataLoader(
         dataset,
@@ -31,7 +31,7 @@ def validdataloader(path="Dataset/valid", input_size=(512, 512), batch_size=1, p
     num_workers = 0 if pin_memory else num_workers
 
     transform = CenterValidTransform(input_size, mean=mean, std=std)
-    dataset = FaceDataset(path=path, transform=transform)
+    dataset = FaceDataset(path=path, same_identity_per_batch=1, transform=transform)
 
     dataloader = DataLoader(
         dataset,
@@ -50,7 +50,7 @@ def testdataloader(path="Dataset/test", input_size=(512, 512), pin_memory=True,
     num_workers = 0 if pin_memory else num_workers
 
     transform = CenterValidTransform(input_size, mean=mean, std=std)
-    dataset = FaceDataset(path=path, transform=transform)
+    dataset = FaceDataset(path=path, same_identity_per_batch=1, transform=transform)
 
     dataloader = DataLoader(
         dataset,
