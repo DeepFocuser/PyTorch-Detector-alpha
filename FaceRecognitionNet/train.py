@@ -343,7 +343,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
             loss_sum = 0
 
-            net.eval()
+            #net.eval()
 
             # loss 구하기
             for (anchor, positive, negative, _, _, _) in valid_dataloader:
