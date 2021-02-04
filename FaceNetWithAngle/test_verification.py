@@ -107,7 +107,7 @@ def run(mean=[0.485, 0.456, 0.406],
             similarity_of_ap = torch.nn.functional.cosine_similarity(anchor_pred, positive_pred)
             similarity_of_an = torch.nn.functional.cosine_similarity(anchor_pred, negative_pred)
 
-            # l2 distance
+            # cosine similarity
             anchor_img = cv2.imread(anchor_path, flags=-1)
             anchor_img = cv2.resize(anchor_img, dsize=(width, height), interpolation=1)
 
