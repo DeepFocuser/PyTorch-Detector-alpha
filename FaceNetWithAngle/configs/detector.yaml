@@ -6,7 +6,7 @@ Dataset:
 
   # Valid and Test
   test_method: verification
-  threshold: 0.5
+  threshold: 0.5 # 1에 가까울수록 유사함
   test_weight_path: weights
   save_flag: True
   save_path: result
@@ -16,7 +16,7 @@ model:
 
   # Re training or Test
   load_name: 250_250_ADAM_PRES18 # training = False,
-  load_period: 7
+  load_period: 21
 
   save_period: 1
   input_size: [250, 250] # height, width
@@ -29,11 +29,11 @@ hyperparameters:
   image_mean: [0.485, 0.456, 0.406] # R G B
   image_std:  [0.229, 0.224, 0.225] # R G B
   embedding: 128
-  margin: 0.21
+  margin: 0.21 # radian 단위 약 12.03211도
   semi_hard_negative: True
 
   # 학습 관련
-  epoch: 7
+  epoch: 21
   batch_size: 32
   batch_log: 100
   subdivision: 1

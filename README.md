@@ -3,7 +3,8 @@
 * [***FaceDetector and Recognition***]()
     * [***Face Detector based on CenterNet***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterFaceNet)
     * [***Face Detector based on CenterNet FPN***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/CenterFaceNet_FPN)
-    * [***Face Recognition***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/FaceRecognitionNet)
+    * [***Face Net***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/FaceNet)
+    * [***Face Net with ArcFace Loss***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/FaceNetWithAngle)
 * [***YoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/YoloV3)
 * [***GaussianYoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/GaussianYoloV3)
 
