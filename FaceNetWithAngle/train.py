@@ -269,7 +269,7 @@ def run(mean=[0.485, 0.456, 0.406],
                     # Semi-Hard Negative triplet selection
                     # (negative_distance - positive_distance < margin) AND (positive_distance < negative_distance)
                     # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
-                    first_condition = (an_select - ap_select) < torch.cos(margin)
+                    first_condition = (an_select - ap_select) < torch.cos(torch.as_tensor(margin))
                     second_condition = ap_select < an_select
                     all = (torch.logical_and(first_condition, second_condition))
                     valid_triplets = torch.where(all == 1)
@@ -277,7 +277,7 @@ def run(mean=[0.485, 0.456, 0.406],
                     # Hard Negative triplet selection
                     # (negative_distance - positive_distance < margin)
                     # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
-                    all = (an_select - ap_select) < torch.cos(margin)
+                    all = (an_select - ap_select) < torch.cos(torch.as_tensor(margin))
                     valid_triplets = torch.where(all == 1)
 
                 triplet_loss = TLLoss(anchor_pred[valid_triplets],
@@ -363,7 +363,7 @@ def run(mean=[0.485, 0.456, 0.406],
                         # Semi-Hard Negative triplet selection
                         # (negative_distance - positive_distance < margin) AND (positive_distance < negative_distance)
                         # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
-                        first_condition = (an_select - ap_select) < torch.cos(margin)
+                        first_condition = (an_select - ap_select) < torch.cos(torch.as_tensor(margin))
                         second_condition = ap_select < an_select
                         all = (torch.logical_and(first_condition, second_condition))
                         valid_triplets = torch.where(all == 1)
@@ -371,7 +371,7 @@ def run(mean=[0.485, 0.456, 0.406],
                         # Hard Negative triplet selection
                         # (negative_distance - positive_distance < margin)
                         # https://github.com/tamerthamoqa/facenet-pytorch-vggface2/blob/master/train_triplet_loss.py
-                        all = (an_select - ap_select) < torch.cos(margin)
+                        all = (an_select - ap_select) < torch.cos(torch.as_tensor(margin))
                         valid_triplets = torch.where(all == 1)
 
                     triplet_loss = TLLoss(anchor_pred[valid_triplets],

@@ -15,5 +15,4 @@ class TripletLoss(Module):
         ap_loss = self.cossimloss(anchor, positive)
         an_loss = self.cossimloss(anchor, negative)
         loss = torch.clamp(torch.acos(ap_loss) - torch.acos(an_loss) + self.margin, min=0.0)
-        #loss = torch.clamp(ap_loss - an_loss + torch.cos(self.margin), min=0.0)
         return torch.mean(loss)
