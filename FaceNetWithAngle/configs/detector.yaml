@@ -29,7 +29,7 @@ hyperparameters:
   image_mean: [0.485, 0.456, 0.406] # R G B
   image_std:  [0.229, 0.224, 0.225] # R G B
   embedding: 128
-  margin: 0.21 # radian 단위 약 57도
+  margin: 0.21 # 1radian : 약 57도
   semi_hard_negative: True
 
   # 학습 관련
