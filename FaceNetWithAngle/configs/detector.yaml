@@ -40,7 +40,7 @@ hyperparameters:
   data_augmentation: False
   num_workers: 8 # the number of multiprocessing workers to use for data preprocessing.
   optimizer: ADAM # ADAM, RMSPROP
-  learning_rate: 0.021
+  learning_rate: 0.001
   weight_decay: 0.000001
   decay_lr: 0.9
   decay_step: 1 # 몇 epoch이 지난후 decay_lr을 적용할지

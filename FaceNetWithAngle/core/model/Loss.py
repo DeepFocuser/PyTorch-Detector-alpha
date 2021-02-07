@@ -1,5 +1,4 @@
 import torch
-from torch.nn import CosineSimilarity
 from torch.nn import Module
 
 
@@ -7,12 +6,11 @@ class TripletLoss(Module):
 
     def __init__(self, margin):
         super(TripletLoss, self).__init__()
-        self.margin = margin
-        self.cossimloss = CosineSimilarity()
+        self._margin = margin
 
     def forward(self, anchor, positive, negative):
 
-        ap_loss = self.cossimloss(anchor, positive)
-        an_loss = self.cossimloss(anchor, negative)
-        loss = torch.clamp(torch.acos(ap_loss) - torch.acos(an_loss) + self.margin, min=0.0)
+        ap_loss = torch.sum(torch.mul(anchor, positive), dim=1)
+        an_loss = torch.sum(torch.mul(anchor, negative), dim=1)
+        loss = torch.clamp(torch.acos(ap_loss) - torch.acos(an_loss) + self._margin, min=0.0)
         return torch.mean(loss)

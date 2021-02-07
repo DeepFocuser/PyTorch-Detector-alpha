@@ -16,7 +16,7 @@ from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
 from core import PrePostNet
-from core import TripletLoss, CosineSimilarity
+from core import TripletLoss
 from core import get_resnet
 from core import traindataloader, validdataloader
 
@@ -201,7 +201,6 @@ def run(mean=[0.485, 0.456, 0.406],
     if isinstance(device, (list, tuple)):
         net = DataParallel(net, device_ids=device, output_device=context, dim=0)
 
-    CosSimLoss = CosineSimilarity()
     TLLoss = TripletLoss(margin=margin)
 
     # optimizer
@@ -262,8 +261,8 @@ def run(mean=[0.485, 0.456, 0.406],
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
                 Loss 구현시 고려해야 한다.(mean 모드) 
                 '''
-                ap_select = CosSimLoss(anchor_pred, positive_pred)
-                an_select = CosSimLoss(anchor_pred, negative_pred)
+                ap_select = torch.sum(torch.mul(anchor_pred, positive_pred), dim=1)
+                an_select = torch.sum(torch.mul(anchor_pred, negative_pred), dim=1)
 
                 if semi_hard_negative:
                     # Semi-Hard Negative triplet selection
@@ -356,8 +355,8 @@ def run(mean=[0.485, 0.456, 0.406],
                     positive_pred = net(positive)
                     negative_pred = net(negative)
 
-                    ap_select = CosSimLoss(anchor_pred, positive_pred)
-                    an_select = CosSimLoss(anchor_pred, negative_pred)
+                    ap_select = torch.sum(torch.mul(anchor_pred, positive_pred), dim=1)
+                    an_select = torch.sum(torch.mul(anchor_pred, negative_pred), dim=1)
 
                     if semi_hard_negative:
                         # Semi-Hard Negative triplet selection

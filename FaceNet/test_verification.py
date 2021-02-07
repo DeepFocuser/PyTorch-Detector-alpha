@@ -104,10 +104,10 @@ def run(mean=[0.485, 0.456, 0.406],
             positive_pred = net(positive)
             negative_pred = net(negative)
 
+            # l2 distance
             distance_of_ap = torch.nn.functional.pairwise_distance(anchor_pred, positive_pred, p=2.0)
             distance_of_an = torch.nn.functional.pairwise_distance(anchor_pred, negative_pred, p=2.0)
 
-            # l2 distance
             anchor_img = cv2.imread(anchor_path, flags=-1)
             anchor_img = cv2.resize(anchor_img, dsize=(width, height), interpolation=1)
 
