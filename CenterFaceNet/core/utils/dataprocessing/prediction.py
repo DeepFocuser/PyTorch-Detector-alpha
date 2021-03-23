@@ -139,12 +139,16 @@ class Prediction(nn.Module):
         wh = wh.permute(0, 2, 3, 1).reshape((batch, -1, 2))  # (batch, width, height, channel) -> (batch, height*width, 2)
         landmark = landmark.permute(0, 2, 3, 1).reshape((batch, -1, landmark.shape[1])) # (batch, width, height, channel) -> (batch, height*width, 10)
         landmark_split = torch.split(landmark, 2, dim=-1) # 각각 (batch, height*width, 2)
-        topk_indices = torch.fmod(indices, float((height * width))) # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.7.0 /output dtype : indices.dtype
-
+        
+        # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.7.0 /output dtype : indices.dtype
+        # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.8.0 /output dtype : float32
+        topk_indices = torch.fmod(indices, float((height * width)))
+        topk_indices = topk_indices.to(indices.dtype)
+        
         # 2차원 복구
         topk_ys = torch.floor_divide(topk_indices, width)  # y축 index
-        topk_xs = torch.fmod(topk_indices, float(width))  # x축 index, why float? For compatibility of torchscript and pytorch 1.7.0 /output dtype : indices.dtype
-
+        topk_xs = torch.fmod(topk_indices, float(width))  # x축 index
+        
         batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
         batch_indices = batch_indices.repeat_interleave(self._topk, dim=-1) # (batch, self._topk)
 
