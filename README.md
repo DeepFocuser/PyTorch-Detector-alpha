@@ -8,6 +8,9 @@
 * [***YoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/YoloV3)
 * [***GaussianYoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/GaussianYoloV3)
 
+>## ***classification***
+* [***classification***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/classification)
+
 >## ***Development environment***
 * OS : ubuntu linux 16.04 LTS
 * Graphic card / driver : rtx 2080ti / 418.56
