@@ -101,7 +101,7 @@ def plot_bbox(img, bboxes, landmarks=None, scores=None, labels=None, thresh=0.5,
             # landmark 그리기
             try:
                 for j in range(0, len(landmarks[i]), 2):
-                    cv2.line(img, tuple(landmarks[i][j:j+2]), tuple(landmarks[i][j:j+2]), denorm_color, thickness=3)
+                    cv2.line(img, landmarks[i][j:j+2].astype(np.int), landmarks[i][j:j+2].astype(np.int), denorm_color, thickness=3)
             except Exception as E:
                 logging.info(E)
 

@@ -27,7 +27,7 @@ Dataset:
 
 model:
   training: True
-  load_name: 640_640_ADAM_PCENTER_RES34 # training = False,
+  load_name: 640_640_ADAM_PCENTER_RES18 # training = False,
   save_period: 7
   load_period: 70
   input_size: [640, 640] # height, width

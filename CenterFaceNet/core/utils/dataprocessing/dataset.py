@@ -12,7 +12,7 @@ if os.path.isfile(logfilepath):
     os.remove(logfilepath)
 logging.basicConfig(filename=logfilepath, level=logging.INFO)
 
-
+# Dataset Annotation 받는 곳 : https://github.com/peteryuX/retinaface-tf2
 class DetectionDataset(Dataset):
     """
     Parameters

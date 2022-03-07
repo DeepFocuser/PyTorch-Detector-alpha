@@ -3,7 +3,6 @@ import os
 
 import torch
 import torch.nn as nn
-from torchvision.models.utils import load_state_dict_from_url
 
 logfilepath = ""
 if os.path.isfile(logfilepath):
@@ -224,8 +223,8 @@ class ResNet(nn.Module):
 def _resnet(arch, block, layers, pretrained, progress, input_frame_number, **kwargs):
     model = ResNet(block, layers, input_frame_number=input_frame_number, **kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls[arch],
-                                              progress=progress)
+        state_dict = torch.hub.load_state_dict_from_url(model_urls[arch],
+                                                        progress=progress)
         verbose = model.load_state_dict(state_dict, strict=False)
         logging.info(verbose)
     else:

@@ -12,19 +12,19 @@
 * [***classification***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/classification)
 
 >## ***Development environment***
-* OS : ubuntu linux 16.04 LTS
-* Graphic card / driver : rtx 2080ti / 418.56
-* Anaconda version : 4.7.12
-* pytorch version : 1.7.0
+* OS : ubuntu linux 18.04 LTS
+* Graphic card / driver : Quadro RTX 5000 / 470.103.01
+* miniconda version : 4.11.0
+* pytorch version : 1.10.0
     * Configure Run Environment
         1. Create a virtual environment
         ```cmd
-        jg@JG:~$ conda create -n pytorch python==3.7.3
+        jg@JG:~$ conda create -n pytorch python==3.8.0
         ```
         2. Install the required module 
         ```cmd
         jg@JG:~$ conda activate pytorch 
-        (pytorch) jg@JG:~$ conda install pytorch torchvision cudatoolkit=10.1 -c pytorch 
+        (pytorch) jg@JG:~$ conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
         (pytorch) jg@JG:~$ pip install matplotlib tensorboard torchsummary plotly mlflow opencv-python==4.1.1.26 tqdm PyYAML --pre --upgrade
         ```
 >## ***Author*** 
