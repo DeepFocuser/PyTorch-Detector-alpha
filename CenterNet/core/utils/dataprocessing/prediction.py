@@ -118,7 +118,7 @@ class Prediction(nn.Module):
         topk_xs = torch.fmod(topk_indices, float(width))  # x축 index
 
         batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
-        batch_indices = batch_indices.repeat_interleave(self._topk, dim=-1) # (batch, self._topk)
+        batch_indices = batch_indices.repeat(1, self._topk) # (batch, self._topk)
 
         offset_xs_indices = torch.zeros_like(batch_indices, dtype=torch.int64)
         offset_ys_indices = torch.ones_like(batch_indices, dtype=torch.int64)
