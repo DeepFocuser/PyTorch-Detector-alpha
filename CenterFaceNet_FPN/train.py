@@ -300,7 +300,7 @@ def run(mean=[0.485, 0.456, 0.406],
                     landmark_target_split,
                     mask_target_split,
                     landmarks_mask_target_split):
-                heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image)
+                heatmap_pred, offset_pred, wh_pred, landmark_pred = net(image_part)
                 '''
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
                 Loss 구현시 고려해야 한다.(mean 모드) 
