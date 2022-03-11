@@ -194,7 +194,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
     if os.path.exists(param_path):
         start_epoch = load_period
-        checkpoint = torch.load(param_path)
+        checkpoint = torch.load(param_path, map_location=context)
         if 'model_state_dict' in checkpoint:
             try:
                 net.load_state_dict(checkpoint['model_state_dict'])
@@ -221,7 +221,7 @@ def run(mean=[0.485, 0.456, 0.406],
 
     if os.path.exists(param_path):
         # optimizer weight 불러오기
-        checkpoint = torch.load(param_path)
+        checkpoint = torch.load(param_path, map_location=context)
         if 'optimizer_state_dict' in checkpoint:
             try:
                 trainer.load_state_dict(checkpoint['optimizer_state_dict'])
