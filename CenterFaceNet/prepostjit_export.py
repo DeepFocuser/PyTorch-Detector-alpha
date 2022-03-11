@@ -22,7 +22,12 @@ def export(input_frame_number = 2,
            nms=False,
            except_class_thresh=0.01,
            nms_thresh=0.5):
-
+    
+    if torch.cuda.device_count() > 0:
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+        
     scale_factor = 4  # 고정
     origin_weight_path = os.path.join(originpath, load_name)
     jit_path = os.path.join(origin_weight_path, f'{load_name}-{load_period:04d}.jit')
@@ -34,7 +39,7 @@ def export(input_frame_number = 2,
 
     if os.path.exists(jit_path):
         logging.info(f"loading {os.path.basename(jit_path)}")
-        net = torch.jit.load(jit_path)
+        net = torch.jit.load(jit_path, map_location=device)
     else:
         raise FileExistsError
 
