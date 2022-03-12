@@ -124,7 +124,7 @@ class Prediction(nn.Module):
         scores, indices = heatmap_resize.topk(k=self._topk, dim=-1, largest=True, sorted=True)  #(batch, channel * height * width) / int64
 
         scores = scores[:,:,None]
-        ids = torch.floor_divide(indices, (height * width)) # 몫 만 구하기
+        ids = torch.div(indices, (height * width), rounding_mode="floor") # 몫 만 구하기
         ids = ids.float()  # c++에서 float으로 받아오기 때문에!!! 형 변환 필요
         ids = ids[:,:,None]
 
@@ -140,14 +140,11 @@ class Prediction(nn.Module):
         landmark = landmark.permute(0, 2, 3, 1).reshape((batch, -1, landmark.shape[1])) # (batch, width, height, channel) -> (batch, height*width, 10)
         landmark_split = torch.split(landmark, 2, dim=-1) # 각각 (batch, height*width, 2)
 
-        # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.7.0 /output dtype : indices.dtype
-        # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.8.0 /output dtype : float32
-        topk_indices = torch.fmod(indices, float((height * width)))
-        topk_indices = topk_indices.to(indices.dtype)
-        
+        topk_indices = torch.remainder(indices, (height * width))
+
         # 2차원 복구
-        topk_ys = torch.floor_divide(topk_indices, width)  # y축 index
-        topk_xs = torch.fmod(topk_indices, float(width))  # x축 index
+        topk_ys = torch.div(topk_indices, width, rounding_mode="floor")  # y축 index
+        topk_xs = torch.remainder(topk_indices, width)  # x축 index
         
         batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
         batch_indices = batch_indices.repeat(1, self._topk) # (batch, self._topk)
