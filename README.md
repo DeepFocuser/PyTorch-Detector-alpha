@@ -15,7 +15,7 @@
 * OS : ubuntu linux 18.04 LTS
 * Graphic card / driver : Quadro RTX 5000 / 470.103.01
 * miniconda version : 4.11.0
-* pytorch version : 1.10.0
+* pytorch version : 1.11.0
     * Configure Run Environment
         1. Create a virtual environment
         ```cmd
