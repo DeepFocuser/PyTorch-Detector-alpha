@@ -71,7 +71,7 @@ class Decoder(Module):
         if self._multiperclass:
 
             bbox = bbox.unsqueeze(dim=0)
-            bbox = torch.repeat_interleave(bbox, self._num_classes, dim=0)  # (5, b, 169, 3, 4)
+            bbox = torch.repeat(self._num_classes, 1, 1, 1, 1) # (5, b, 169, 3, 4)
             class_pred = class_pred.permute(3, 0, 1, 2).unsqueeze(dim=-1)  # (5, b, 169, 3, 1)
 
             id = torch.add(class_pred * 0,
