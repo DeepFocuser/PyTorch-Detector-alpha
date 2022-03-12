@@ -109,15 +109,12 @@ class Prediction(nn.Module):
             (batch, -1, 2))  # (batch, x, y, channel) -> (batch, height*width, 2)
         wh = wh.permute(0, 2, 3, 1).reshape((batch, -1, 2))  # (batch, width, height, channel) -> (batch, height*width, 2)
         
-        # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.7.0 /output dtype : indices.dtype
-        # 클래스별 index, why float? For compatibility of torchscript and pytorch 1.8.0 /output dtype : float32
-        topk_indices = torch.fmod(indices, float((height * width)))
-        topk_indices = topk_indices.to(indices.dtype)
-        
+        topk_indices = torch.remainder(indices, (height * width))
+
         # 2차원 복구
         topk_ys = torch.div(topk_indices, width, rounding_mode="floor")  # y축 index
-        topk_xs = torch.fmod(topk_indices, float(width))  # x축 index
-
+        topk_xs = torch.remainder(topk_indices, width)  # x축 index
+     
         batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
         batch_indices = batch_indices.repeat(1, self._topk) # (batch, self._topk)
 
