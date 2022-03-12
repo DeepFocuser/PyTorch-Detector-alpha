@@ -38,8 +38,10 @@ class Prediction(Module):
         if ids.shape[0] == 1:
             return ids, scores, bboxes
 
-        # 내림차순 정렬
-        indices = scores.argsort(dim=0, descending=True)[:,0] # 내림차순 정렬
+        # You should not write a stable argument.
+        _, indices = torch.sort(scores, dim=0, descending=True) # 내림차순 정렬
+        indices = indices[:,0]
+        
         ids = ids[indices]
         scores = scores[indices]
         xmin = bboxes[:,0:1][indices]
