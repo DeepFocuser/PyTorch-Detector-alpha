@@ -94,7 +94,8 @@ class Prediction(nn.Module):
         scores, indices = heatmap_resize.topk(k=self._topk, dim=-1, largest=True, sorted=True)  #(batch, channel * height * width) / int64
 
         scores = scores[:,:,None]
-        ids = torch.floor_divide(indices, (height * width)) # 몫 만 구하기
+         
+        ids = torch.div(topk_indices, (height * width), rounding_mode="floor")  # 몫 만 구하기
         ids = ids.float()  # c++에서 float으로 받아오기 때문에!!! 형 변환 필요
         ids = ids[:,:,None]
 
@@ -114,7 +115,7 @@ class Prediction(nn.Module):
         topk_indices = topk_indices.to(indices.dtype)
         
         # 2차원 복구
-        topk_ys = torch.floor_divide(topk_indices, width)  # y축 index
+        topk_ys = torch.div(topk_indices, width, rounding_mode="floor")  # y축 index
         topk_xs = torch.fmod(topk_indices, float(width))  # x축 index
 
         batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
