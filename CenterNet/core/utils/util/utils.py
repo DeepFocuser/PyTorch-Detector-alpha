@@ -26,6 +26,8 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
                          .format(len(scores), len(bboxes)))
 
     if image_save:
+        image_name = image_name if image_name else "image"
+        image_save_path = image_save_path if image_save_path else "images"
         if not os.path.exists(image_save_path):
             os.makedirs(image_save_path)
 
@@ -40,6 +42,7 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
         if image_save:
             cv2.imwrite(os.path.join(image_save_path, image_name + ".jpg"), img)
         if image_show:
+            image_name = image_name if image_name else "image"
             cv2.imshow(image_name, img)
             cv2.waitKey(0)
         return img
@@ -53,8 +56,6 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
 
         if reverse_rgb:
             img[:, :, (0, 1, 2)] = img[:, :, (2, 1, 0)]
-
-        copied_img = img.copy()
 
         if not absolute_coordinates:
             # convert to absolute coordinates using image shape
@@ -92,7 +93,7 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
                 numpy인 경우 float64만 동작함 - 나머지 동작안함
                 다른 자료형 같은 경우는 tolist로 바꾼 다음 넣어줘야 동작함.
                 '''
-                cv2.rectangle(img, (xmin, ymin), (xmax, ymax), denorm_color, thickness=3)
+                cv2.rectangle(img, (xmin, ymin), (xmax, ymax), denorm_color, thickness=1)
             except Exception as E:
                 logging.info(E)
 
@@ -104,25 +105,24 @@ def plot_bbox(img, bboxes, scores=None, labels=None, thresh=0.5,
             score = '{:.2f}'.format(scores.ravel()[i]) if scores is not None else ''
 
             if class_name or score:
-                cv2.putText(copied_img,
+                cv2.putText(img,
                             text='{} {}'.format(class_name, score), \
-                            org=(xmin + 7, ymin + 20), \
-                            fontFace=cv2.FONT_HERSHEY_TRIPLEX, \
-                            fontScale=0.5, \
-                            color=[255, 255, 255], \
+                            org=(xmin - 22 , ymin - 7), \
+                            fontFace=cv2.FONT_HERSHEY_SIMPLEX, \
+                            fontScale=0.4, \
+                            color=denorm_color, \
                             thickness=1, bottomLeftOrigin=False)
 
-        result = cv2.addWeighted(img, 0.5, copied_img, 0.5, 0)
-
         if heatmap is not None:
-            result = np.concatenate([result, heatmap], axis=1)
+            img = np.concatenate([img, heatmap], axis=1)
         if image_save:
-            cv2.imwrite(os.path.join(image_save_path, image_name + ".jpg"), result)
+            cv2.imwrite(os.path.join(image_save_path, image_name + ".jpg"), img)
         if image_show:
-            cv2.imshow(image_name, result)
+            image_name = image_name if image_name else "image"
+            cv2.imshow(image_name, img)
             cv2.waitKey(0)
 
-        return result
+        return img
 
 class PrePostNet(nn.Module):
 
