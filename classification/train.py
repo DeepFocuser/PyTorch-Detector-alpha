@@ -145,7 +145,7 @@ def run(mean=[0.485, 0.456, 0.406],
     param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.pt')
 
     start_epoch = 0
-    net = get_resnet(18, pretrained=pretrained_base, num_classes=num_classes)
+    net = get_resnet(base, pretrained=pretrained_base, num_classes=num_classes)
 
     # https://github.com/sksq96/pytorch-summary
     if GPU_COUNT == 0:
@@ -251,7 +251,7 @@ def run(mean=[0.485, 0.456, 0.406],
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
                 Loss 구현시 고려해야 한다.(mean 모드) 
                 '''
-                loss = torch.div(SCELoss(pred, label), subdivision)
+                loss = torch.div(SCELoss(pred, label_part), subdivision)
                 losses.append(loss.item())
 
                 total_loss = total_loss + loss
