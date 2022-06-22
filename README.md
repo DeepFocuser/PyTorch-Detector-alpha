@@ -8,7 +8,7 @@
 * [***YoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/YoloV3)
 * [***GaussianYoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/GaussianYoloV3)
 
->## ***segmentation***
+>## ***segmentation - not yet***
 * [***segmentation***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/segmentation)
 
 >## ***classification***
