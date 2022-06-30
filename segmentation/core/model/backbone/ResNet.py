@@ -119,7 +119,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, input_frame_number=1, num_classes=1000, zero_init_residual=False,
+    def __init__(self, block, layers, input_frame_number=2, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -151,8 +151,8 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
 
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc_new = nn.Linear(512 * block.expansion, num_classes)
+        # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        # self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -207,9 +207,9 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.fc_new(x)
+        # x = self.avgpool(x)
+        # x = torch.flatten(x, 1)
+        # x = self.fc(x)
 
         return x
 
@@ -221,6 +221,16 @@ def _resnet(arch, block, layers, pretrained, progress, input_frame_number, **kwa
     if pretrained:
         state_dict = torch.hub.load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
+        '''
+            n 채널 대비
+            가중치 채널축으로 복제
+        '''
+        temp = state_dict['conv1.weight']
+        _, channel, _, _ = temp.shape
+        if input_frame_number*3 != channel:
+            repeated = torch.repeat_interleave(state_dict['conv1.weight'], input_frame_number, dim=1)
+            state_dict['conv1.weight'] = repeated
+
         verbose = model.load_state_dict(state_dict, strict=False)
         logging.info(verbose)
     else:
@@ -228,7 +238,7 @@ def _resnet(arch, block, layers, pretrained, progress, input_frame_number, **kwa
     return model
 
 
-def resnet18(pretrained=False, progress=True, input_frame_number=1, **kwargs):
+def resnet18(pretrained=False, progress=True, input_frame_number=2, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -240,7 +250,7 @@ def resnet18(pretrained=False, progress=True, input_frame_number=1, **kwargs):
                    **kwargs)
 
 
-def resnet34(pretrained=False, progress=True, input_frame_number=1, **kwargs):
+def resnet34(pretrained=False, progress=True, input_frame_number=2, **kwargs):
     r"""ResNet-34 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -252,7 +262,7 @@ def resnet34(pretrained=False, progress=True, input_frame_number=1, **kwargs):
                    **kwargs)
 
 
-def resnet50(pretrained=False, progress=True, input_frame_number=1, **kwargs):
+def resnet50(pretrained=False, progress=True, input_frame_number=2, **kwargs):
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -264,7 +274,7 @@ def resnet50(pretrained=False, progress=True, input_frame_number=1, **kwargs):
                    **kwargs)
 
 
-def resnet101(pretrained=False, progress=True, input_frame_number=1, **kwargs):
+def resnet101(pretrained=False, progress=True, input_frame_number=2, **kwargs):
     r"""ResNet-101 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -276,7 +286,7 @@ def resnet101(pretrained=False, progress=True, input_frame_number=1, **kwargs):
                    **kwargs)
 
 
-def resnet152(pretrained=False, progress=True, input_frame_number=1, **kwargs):
+def resnet152(pretrained=False, progress=True, input_frame_number=2, **kwargs):
     r"""ResNet-152 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
 
@@ -287,33 +297,31 @@ def resnet152(pretrained=False, progress=True, input_frame_number=1, **kwargs):
     return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrained, progress, input_frame_number,
                    **kwargs)
 
-def get_resnet(base, pretrained=False, input_frame_number=1, num_classes=2):
+def get_resnet(base, pretrained=False, input_frame_number=2):
 
     if base==18:
-        model = resnet18(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet18(pretrained=pretrained, input_frame_number=input_frame_number)
     elif base==34:
-        model = resnet34(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet34(pretrained=pretrained, input_frame_number=input_frame_number)
     elif base==50:
-        model = resnet50(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet50(pretrained=pretrained, input_frame_number=input_frame_number)
     elif base==101:
-        model = resnet101(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet101(pretrained=pretrained, input_frame_number=input_frame_number)
     elif base==152:
-        model = resnet152(pretrained=pretrained, input_frame_number=input_frame_number, num_classes=num_classes)
+        model = resnet152(pretrained=pretrained, input_frame_number=input_frame_number)
     else:
         raise ValueError
 
     return model
 if __name__ == "__main__":
 
-    input_size = (64, 128)
-    device = torch.device("cuda:0")
+    input_size = (512, 512)
+    input_frame_number= 2
+    device = torch.device("cuda")
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    net = get_resnet(18, pretrained=True, input_frame_number=1, num_classes=2)
-    net.eval()
-
+    net = get_resnet(18, pretrained=True, input_frame_number=input_frame_number)
     net.to(device)
-    with torch.no_grad():
-        output = net(torch.rand(3, 3, input_size[0],input_size[1], device=device))
+    output = net(torch.rand(2, 3*input_frame_number, input_size[0],input_size[1], device=device))
     print(f"< input size(height, width) : {input_size} >")
     print(f"< output shape : {output.shape} >")
     '''

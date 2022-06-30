@@ -1,10 +1,11 @@
-import random
 import numpy as np
+import random
+
 __all__ = ["image_random_color_distort", "random_flip", "np", "random"]
+
 
 def image_random_color_distort(src, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
                                saturation_low=0.5, saturation_high=1.5, hue_delta=18):
-
     def brightness(src, delta, p=0.5):
         """Brightness distortion."""
         if np.random.uniform(0, 1) > p:
@@ -69,13 +70,18 @@ def image_random_color_distort(src, brightness_delta=32, contrast_low=0.5, contr
         src = contrast(src, contrast_low, contrast_high)
     return src
 
-def random_flip(src, px=0, py=0, copy=False):
+
+def random_flip(src, target, px=0, py=0, copy=False):
     flip_y = np.random.choice([False, True], p=[1 - py, py])
     flip_x = np.random.choice([False, True], p=[1 - px, px])
     if flip_y:
         src = np.flip(src, axis=0)
+        target = np.flip(target, axis=0)
     if flip_x:
         src = np.flip(src, axis=1)
+        target = np.flip(target, axis=1)
     if copy:
         src = src.copy()
-    return src, (flip_x, flip_y)
+        target = target.copy()
+
+    return src, target, (flip_x, flip_y)

@@ -14,10 +14,9 @@ from torch.utils.tensorboard import SummaryWriter
 from torchsummary import summary as modelsummary
 from tqdm import tqdm
 
+from core import SegmentationNet
 from core import PrePostNet
 from core import SoftmaxCrossEntropyLoss
-from core import get_resnet
-from core import plot_bbox
 from core import traindataloader, validdataloader
 
 logfilepath = ""
@@ -100,7 +99,7 @@ def run(mean=[0.485, 0.456, 0.406],
     if data_augmentation:
         logging.info("Using Data Augmentation")
 
-    logging.info("training classification")
+    logging.info("training segmentation")
     input_shape = (1, 3 * input_frame_number) + tuple(input_size)
 
     train_dataloader, train_dataset = traindataloader(augmentation=data_augmentation,
@@ -131,21 +130,20 @@ def run(mean=[0.485, 0.456, 0.406],
             logging.warning("valid batch size가 데이터 수보다 큼")
             exit(0)
 
-    num_classes = train_dataset.num_class  # 클래스 수
-    name_classes = train_dataset.classes
-
     optimizer = optimizer.upper()
     if pretrained_base:
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "_P" + "RES" + str(base)
     else:
         model = str(input_size[0]) + "_" + str(input_size[1]) + "_" + optimizer + "RES" + str(base)
 
+    model = model+"_DataAug_" + str(data_augmentation) + f"_{input_frame_number}frame"
+
     # https://discuss.pytorch.org/t/how-to-save-the-optimizer-setting-in-a-log-in-pytorch/17187
     weight_path = os.path.join("weights", f"{model}")
     param_path = os.path.join(weight_path, f'{model}-{load_period:04d}.pt')
 
     start_epoch = 0
-    net = get_resnet(18, pretrained=pretrained_base, num_classes=num_classes)
+    net = SegmentationNet(base=base, input_frame_number=input_frame_number, pretrained=pretrained_base)
 
     # https://github.com/sksq96/pytorch-summary
     if GPU_COUNT == 0:
@@ -160,6 +158,18 @@ def run(mean=[0.485, 0.456, 0.406],
     if os.path.exists(param_path):
         start_epoch = load_period
         checkpoint = torch.load(param_path, map_location=context)
+
+        '''
+            n 채널 대비
+            가중치 채널축으로 복제
+        '''
+        temp = checkpoint['model_state_dict']['_base_network._resnet.conv1.weight']
+        _, channel, _, _ = temp.shape
+
+        if input_frame_number*3 != channel:
+            repeated = torch.repeat_interleave(checkpoint['model_state_dict']['_base_network._resnet.conv1.weight'], input_frame_number, dim=1)
+            checkpoint['model_state_dict']['_base_network._resnet.conv1.weight'] = repeated
+
         if 'model_state_dict' in checkpoint:
             try:
                 net.load_state_dict(checkpoint['model_state_dict'])
@@ -198,7 +208,7 @@ def run(mean=[0.485, 0.456, 0.406],
     if isinstance(device, (list, tuple)):
         net = DataParallel(net, device_ids=device, output_device=context, dim=0)
 
-    SCELoss = SoftmaxCrossEntropyLoss(axis=-1, sparse_label=False, from_logits=False)
+    SCELoss = SoftmaxCrossEntropyLoss(axis=1, from_logits=False)
 
     # optimizer
     # https://pytorch.org/docs/master/optim.html?highlight=lr%20sche#torch.optim.lr_scheduler.CosineAnnealingLR
@@ -222,8 +232,9 @@ def run(mean=[0.485, 0.456, 0.406],
         time_stamp = time.time()
 
         # multiscale을 하게되면 여기서 train_dataloader을 다시 만드는 것이 좋겠군..
-        for batch_count, (image, label, _) in enumerate(
+        for batch_count, (image, mask, _) in enumerate(
                 train_dataloader,
+
                 start=1):
 
             trainer.zero_grad()
@@ -236,22 +247,22 @@ def run(mean=[0.485, 0.456, 0.406],
             gpu>=1 인 경우 net = DataParallel(net, device_ids=device, output_device=context, dim=0) 에서 
             output_device - gradient가 계산되는 곳을 context로 했기 때문에 아래의 target들도 context로 지정해줘야 함
             '''
-            label = label.to(context)
+            mask = mask.to(context)
             image_split = torch.split(image, chunk, dim=0)
-            label_split = torch.split(label, chunk, dim=0)
+            mask_split = torch.split(mask, chunk, dim=0)
 
             losses = []
             total_loss = 0.0
 
-            for image_part, label_part in zip(
+            for image_part, mask_part in zip(
                     image_split,
-                    label_split):
+                    mask_split):
                 pred = net(image_part)
                 '''
                 pytorch는 trainer.step()에서 batch_size 인자가 없다.
                 Loss 구현시 고려해야 한다.(mean 모드) 
                 '''
-                loss = torch.div(SCELoss(pred, label), subdivision)
+                loss = torch.div(SCELoss(pred, mask_part), subdivision)
                 losses.append(loss.item())
 
                 total_loss = total_loss + loss
@@ -295,11 +306,6 @@ def run(mean=[0.485, 0.456, 0.406],
                 script = torch.jit.script(pretnet)
                 script.save(os.path.join(weight_path, f'{model}-prepost-{i:04d}.jit'))
 
-                # # torch.jit.trace - 안 써짐
-                # 오류 : Expected object of device type cuda but got device type cpu for argument #2 'other' in call to _th_fmod
-                # trace = torch.jit.trace(prepostnet, torch.rand(input_shape[0], input_shape[1], input_shape[2], input_shape[3], device=context))
-                # trace.save(os.path.join(weight_path, f'{model}-{i:04d}.jit'))
-
             except Exception as E:
                 logging.error(f"pt, jit export 예외 발생 : {E}")
             else:
@@ -307,93 +313,70 @@ def run(mean=[0.485, 0.456, 0.406],
 
         if i % eval_period == 0 and valid_list:
 
-
-            numerator = 0
-            denominator = 0
             loss_sum = 0
-
             net.eval()
             # loss 구하기
-            for image, label, _ in valid_dataloader:
+            for image, mask, _ in valid_dataloader:
                 image = image.to(context)
-                label = label.to(context)
+                mask = mask.to(context)
 
                 with torch.no_grad():
                     pred = net(image)
-                    pred_softmax = torch.softmax(pred, dim=-1)
-
-                    output_loss = SCELoss(pred, label)
+                    output_loss = SCELoss(pred, mask)
                     loss_sum += output_loss.item()
-
-                # accuracy
-                pred_argmax = torch.argmax(pred_softmax, dim=1)  # (batch_size , num_outputs)
-                pred_argmax = pred_argmax.detach().cpu().numpy().copy()
-                label_argmax = torch.argmax(label, dim=1)  # (batch_size , num_outputs)
-                label_argmax = label_argmax.detach().cpu().numpy().copy()
-                numerator += sum(pred_argmax == label_argmax)
-                denominator += image.shape[0]
 
             valid_loss_mean = np.divide(loss_sum, valid_update_number_per_epoch)
 
             # confusion matrix
-            accuracy = round((numerator / denominator) * 100, 2)
             logging.info(
-                f"accuracy : {accuracy}% / "
                 f"valid loss : {valid_loss_mean}")
 
             if tensorboard:
 
                 batch_image = []
-                ground_truth_colors = {}
-                for k in range(num_classes):
-                    ground_truth_colors[k] = (0, 1, 0) # RGB
-
                 dataloader_iter = iter(valid_dataloader)
-                image, label, _ = next(dataloader_iter)
+                image, mask, _ = next(dataloader_iter)
                 image = image.to(context)
-                label = label.to(context)
+                mask = mask.to(context)
 
                 with torch.no_grad():
+
                     pred = net(image)
-                    pred = torch.softmax(pred, dim=-1)
+                    pred = torch.softmax(pred, dim=1) # fore_ground
 
-                for img, pd, lb in zip(image, pred, label):
+                for img, pd, mk in zip(image, pred, mask):
 
-                    split_img = torch.split(img, 3, dim=0) # numpy split과 다르네...
+                    pd = pd[0] # forground
+                    mk = mk[0] # forground
+                    split_img = torch.split(img, 3, dim=0)  # numpy split과 다르네...
+
+                    # (H,W,3)-ndarray로 만들기
+                    mk = torch.where(mk >= 0.5, 255, 0).to(torch.uint8) # 바꿔 야함
+                    mk = mk.detach().cpu().numpy().copy()
+                    mk = np.repeat(mk[:, :, None], repeats=3, axis=-1)
+
+                    pd = torch.where(pd >= 0.5, 255, 0).to(torch.uint8)
+                    pd = pd.detach().cpu().numpy().copy()
+                    pd = np.repeat(pd[:,:,None], repeats=3, axis=-1)
+
                     hconcat_image_list = []
-
                     for j, ig in enumerate(split_img):
 
-                        ig = ig.permute((1, 2, 0)) * torch.tensor(std, device=ig.device) + torch.tensor(mean, device=ig.device)
+                        ig = ig.permute((1, 2, 0)) * torch.tensor(std, device=ig.device) + torch.tensor(mean,
+                                                                                                        device=ig.device)
                         ig = (ig * 255).clamp(0, 255)
                         ig = ig.to(torch.uint8)
                         ig = ig.detach().cpu().numpy().copy()
+                        hconcat_image_list.append(ig)
 
-                        if j == len(split_img) - 1:  # 마지막 이미지
-
-                            # ground truth box 그리기
-                            index=torch.argmax(lb)
-                            ground_truth = plot_bbox(ig, score=None, label = name_classes[index],
-                                                     reverse_rgb=False,
-                                                     class_names=valid_dataset.classes,
-                                                     colors=ground_truth_colors, gt = True)
-                            # prediction box 그리기
-                            index = torch.argmax(pd)
-                            score = torch.max(pd)
-                            prediction_box = plot_bbox(ground_truth, score=score, label=name_classes[index],
-                                                       reverse_rgb=False,
-                                                       class_names=valid_dataset.classes)
-                            hconcat_image_list.append(prediction_box)
-                        else:
-                            hconcat_image_list.append(ig)
-
+                    hconcat_image_list.extend([mk, pd])
                     hconcat_images = np.concatenate(hconcat_image_list, axis=1)
 
                     # Tensorboard에 그리기 위해 (height, width, channel) -> (channel, height, width) 를한다.
                     hconcat_images = np.transpose(hconcat_images, axes=(2, 0, 1))
                     batch_image.append(hconcat_images)  # (batch, channel, height, width)
 
-                img_grid = torchvision.utils.make_grid(torch.as_tensor(batch_image), nrow=1)
+                img_grid = torchvision.utils.make_grid(torch.as_tensor(np.array(batch_image)), nrow=1)
                 summary.add_image(tag="valid_result", img_tensor=img_grid, global_step=i)
 
                 summary.add_scalar(tag="loss/train_loss_mean",

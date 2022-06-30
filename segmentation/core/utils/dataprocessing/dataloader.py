@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
 
-from core.utils.dataprocessing.dataset import DetectionDataset
+from core.utils.dataprocessing.dataset import SegmentationDataset
 from core.utils.dataprocessing.transformer import CenterTrainTransform, CenterValidTransform
 
 
@@ -12,7 +12,7 @@ def traindataloader(augmentation=True, path="Dataset/train",
 
     transform = CenterTrainTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std,
                                      augmentation=augmentation)
-    dataset = DetectionDataset(path=path, transform=transform, sequence_number=input_frame_number)
+    dataset = SegmentationDataset(path=path, transform=transform, sequence_number=input_frame_number)
 
     dataloader = DataLoader(
         dataset,
@@ -31,7 +31,7 @@ def validdataloader(path="Dataset/valid", input_size=(512, 512), input_frame_num
     num_workers = 0 if pin_memory else num_workers
 
     transform = CenterValidTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std)
-    dataset = DetectionDataset(path=path, transform=transform, sequence_number=input_frame_number)
+    dataset = SegmentationDataset(path=path, transform=transform, sequence_number=input_frame_number)
 
     dataloader = DataLoader(
         dataset,
@@ -50,7 +50,7 @@ def testdataloader(path="Dataset/test", input_size=(512, 512), input_frame_numbe
     num_workers = 0 if pin_memory else num_workers
 
     transform = CenterValidTransform(input_size, input_frame_number=input_frame_number, mean=mean, std=std)
-    dataset = DetectionDataset(path=path, transform=transform, sequence_number=input_frame_number, test=True)
+    dataset = SegmentationDataset(path=path, transform=transform, sequence_number=input_frame_number, test=True)
 
     dataloader = DataLoader(
         dataset,
@@ -70,20 +70,21 @@ if __name__ == "__main__":
     which enables fast data transfer to CUDA-enabled GPUs.
     '''
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    dataloader, dataset = validdataloader(path=os.path.join(root, 'Dataset', "valid"), input_size=(256, 256),
-                                          batch_size=8, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
+    dataloader, dataset = validdataloader(path='C:/Users/user/Downloads/VideoMatte240K_JPEG_HD/train', input_size=(960, 1280),
+                                          input_frame_number=3, batch_size=8, pin_memory=True, num_workers=4, shuffle=True, mean=[0.485, 0.456, 0.406],
                                           std=[0.229, 0.224, 0.225])
 
     # for문 돌리기 싫으므로, iterator로 만든
     dataloader_iter = iter(dataloader)
-    data, label, name = next(dataloader_iter)
+    data, mask, name = next(dataloader_iter)
 
     print(f"images shape : {data.shape}")
-    print(f"labels shape : {label.shape}")
+    print(f"masks shape : {mask.shape}")
     print(f"name : {name}")
 
     '''
-    images shape : torch.Size([8, 3, 256, 256])
-    labels shape : torch.Size([8, 2])
-    name : ['2.tif', 'ng_03.tif', 'ng_04.tif', '14.tif', '5.tif', '4.tif', '0.tif', '3.tif']
+    images shape : torch.Size([8, 3, 960, 1280])
+    masks shape : torch.Size([8, 2, 960, 1280])
+    name : ['p_5c93e059.jpg', 'p_c7299c54.jpg', 'p_bcc5665d.jpg', 'p_e836fa10.jpg', 'p_42a2b97c.jpg', 'p_31b0178a.jpg', 'p_c93a0a12.jpg', 'p_d41c7d9b.jpg']
+
     '''

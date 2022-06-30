@@ -2,7 +2,6 @@ import mlflow as ml
 import torch
 import yaml
 
-import test
 import train
 
 # nms 구현하면 끝
@@ -12,17 +11,6 @@ stream = yaml.load(open("configs/detector.yaml", "rt", encoding='UTF8'), Loader=
 parser = stream['Dataset']
 train_dataset_path = parser['train']
 valid_dataset_path = parser['valid']
-test_dataset_path = parser['test']
-test_weight_path = parser['test_weight_path']
-
-test_save_path = parser['save_path']
-save_flag = parser['save_flag']
-show_flag = parser['show_flag']
-video_flag = parser['video_flag']
-video_min = parser['video_min']
-video_max = parser['video_max']
-video_fps = parser['video_fps']
-video_name = parser['video_name']
 
 # model
 parser = stream['model']
@@ -92,7 +80,6 @@ if __name__ == "__main__":
             ml.log_param("pretrained_base", pretrained_base)
             ml.log_param("train dataset path", train_dataset_path)
             ml.log_param("valid dataset path", valid_dataset_path)
-            ml.log_param("test dataset path", test_dataset_path)
             ml.log_param("epoch", epoch)
             ml.log_param("batch size", batch_size)
             ml.log_param("data augmentation", data_augmentation)
@@ -107,7 +94,7 @@ if __name__ == "__main__":
             ml.log_param("save_period", save_period)
 
         torch.backends.cudnn.deterministic = False
-        torch.backends.cudnn.benchmark = True # 그래프가 변하는 경우 학습 속도 느려질수 있음.
+        torch.backends.cudnn.benchmark = True  # 그래프가 변하는 경우 학습 속도 느려질수 있음.
         train.run(mean=image_mean,
                   std=image_std,
                   epoch=epoch,
@@ -138,20 +125,3 @@ if __name__ == "__main__":
 
         if using_mlflow:
             ml.end_run()
-    else:
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-        test.run(input_frame_number=input_frame_number,
-                 mean=image_mean,
-                 std=image_std,
-                 load_name=load_name, load_period=load_period, GPU_COUNT=GPU_COUNT,
-                 test_weight_path=test_weight_path,
-                 test_dataset_path=test_dataset_path, num_workers=num_workers,
-                 test_save_path=test_save_path,
-                 show_flag=show_flag,
-                 save_flag=save_flag,
-                 video_flag=video_flag,
-                 video_min = video_min,
-                 video_max = video_max,
-                 video_fps = video_fps,
-                 video_name = video_name)

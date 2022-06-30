@@ -15,7 +15,7 @@ logging.basicConfig(filename=logfilepath, level=logging.INFO)
 def export(input_frame_number = 1,
            originpath="weights",
            newpath="jitweights",
-           load_name="608_608_ADAM_RES18",
+           load_name="960_1280_ADAM_RES18",
            load_period=1):
 
     if torch.cuda.device_count() > 0:
@@ -55,5 +55,5 @@ if __name__ == "__main__":
     export(input_frame_number = 1,
            originpath="weights",
            newpath="jitweights",
-           load_name="608_608_ADAM_PCENTER_RES18",
+           load_name="960_1280_ADAM_PCENTER_RES18",
            load_period=1)

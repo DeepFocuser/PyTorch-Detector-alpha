@@ -8,11 +8,11 @@
 * [***YoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/YoloV3)
 * [***GaussianYoloV3***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/GaussianYoloV3)
 
->## ***segmentation - not yet***
-* [***segmentation***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/segmentation)
+>## ***Segmentation - not yet***
+* [***Segmentation***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/Segmentation)
 
->## ***classification***
-* [***classification***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/classification)
+>## ***Classification***
+* [***Classification***](https://github.com/DeepFocuser/PyTorch-Detector/tree/master/Classification)
 
 >## ***Development environment***
 * OS : ubuntu linux 18.04 LTS
