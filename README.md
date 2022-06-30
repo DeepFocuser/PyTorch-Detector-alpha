@@ -28,7 +28,7 @@
         ```cmd
         jg@JG:~$ conda activate pytorch 
         (pytorch) jg@JG:~$ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
-        (pytorch) jg@JG:~$ pip install matplotlib tensorboard torchsummary plotly mlflow opencv-python==4.1.1.26 tqdm PyYAML --no-cache-dir --pre --upgrade --no-cache-dir
+        (pytorch) jg@JG:~$ pip install matplotlib tensorboard torchsummary plotly mlflow opencv-python==4.1.1.26 tqdm PyYAML --no-cache-dir --pre --upgrade
         ```
 >## ***Author*** 
 
