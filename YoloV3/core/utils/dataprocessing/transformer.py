@@ -31,7 +31,7 @@ class YoloTrainTransform(object):
                 seq_img = np.split(img, self._input_frame_number, axis=-1)
                 for si in seq_img:
                     si = image_random_color_distort(si, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
-                                                    saturation_low=0.5, saturation_high=1.5, hue_delta=0.21)
+                                                    saturation_low=0.5, saturation_high=1.5, hue_delta=0.21).astype(np.uint8)
                     seq_img_list.append(si)
                 img = np.concatenate(seq_img_list, axis=-1)
 
