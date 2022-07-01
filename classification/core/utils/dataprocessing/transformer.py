@@ -32,7 +32,7 @@ class CenterTrainTransform(object):
                     si = image_random_color_distort(si, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
                                                     saturation_low=0.5, saturation_high=1.5, hue_delta=0.21)
                     seq_img_list.append(si)
-                img = np.concatenate(seq_img, axis=-1)
+                img = np.concatenate(seq_img_list, axis=-1)
 
             # random crop을 할만한 크기가 아니다
 
