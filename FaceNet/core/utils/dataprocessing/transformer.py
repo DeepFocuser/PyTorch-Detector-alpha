@@ -27,7 +27,7 @@ class CenterTrainTransform(object):
             distortion = np.random.choice([False, True], p=[0.5, 0.5])
             if distortion:
                 anchor = image_random_color_distort(anchor, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
-                                                    saturation_low=0.5, saturation_high=1.5, hue_delta=0.21)
+                                                    saturation_low=0.5, saturation_high=1.5, hue_delta=0.21).astype(np.uint8)
 
             # random horizontal flip with probability of 0.5
             anchor, flips = random_flip(anchor, px=0.5)
@@ -47,7 +47,7 @@ class CenterTrainTransform(object):
             distortion = np.random.choice([False, True], p=[0.5, 0.5])
             if distortion:
                 positive = image_random_color_distort(positive, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
-                                                      saturation_low=0.5, saturation_high=1.5, hue_delta=0.21)
+                                                      saturation_low=0.5, saturation_high=1.5, hue_delta=0.21).astype(np.uint8)
 
             # random horizontal flip with probability of 0.5
             positive, flips = random_flip(positive, px=0.5)
@@ -67,7 +67,7 @@ class CenterTrainTransform(object):
             distortion = np.random.choice([False, True], p=[0.5, 0.5])
             if distortion:
                 negative = image_random_color_distort(negative, brightness_delta=32, contrast_low=0.5, contrast_high=1.5,
-                                                      saturation_low=0.5, saturation_high=1.5, hue_delta=0.21)
+                                                      saturation_low=0.5, saturation_high=1.5, hue_delta=0.21).astype(np.uint8)
 
             # random horizontal flip with probability of 0.5
             negative, flips = random_flip(negative, px=0.5)
