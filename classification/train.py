@@ -160,6 +160,14 @@ def run(mean=[0.485, 0.456, 0.406],
     if os.path.exists(param_path):
         start_epoch = load_period
         checkpoint = torch.load(param_path, map_location=context)
+        
+        # multi gpu환경에서 학습한 경우 가중치의 key 앞에 'module.'이 붙는다. - 삭제 해주자
+        items=list(checkpoint['model_state_dict'].items())
+        for k, v in items:
+            if k[0:7] == "module.":
+                del checkpoint['model_state_dict'][k]
+                checkpoint['model_state_dict'][k[7:]] = v
+                
         if 'model_state_dict' in checkpoint:
             try:
                 net.load_state_dict(checkpoint['model_state_dict'])
