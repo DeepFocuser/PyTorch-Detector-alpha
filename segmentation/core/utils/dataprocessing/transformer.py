@@ -99,7 +99,7 @@ class CenterValidTransform(object):
         self._toTensor = torchvision.transforms.ToTensor()
 
     def __call__(self, img, mask, name):
-        h, w, _ = img.shape
+        
         img = cv2.resize(img, (self._width, self._height), interpolation=1)
         mask = cv2.resize(mask, (self._width, self._height), interpolation=1)
 
