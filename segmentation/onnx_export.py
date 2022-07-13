@@ -50,7 +50,7 @@ def export(image_path="sample.jpg",
     image = cv2.resize(image, (width, height), interpolation=1)  # 보간법 중요
     # image = cv2.resize(image, (width, height), interpolation=cv2.INTER_LANCZOS4) # 보간법 중요
 
-    torch_tensor = torch.as_tensor(image)
+    torch_tensor = torch.as_tensor(image, device=device)
     torch_tensor = torch_tensor.unsqueeze(0)
 
     # 2. 모델 로드
