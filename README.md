@@ -29,6 +29,8 @@
         jg@JG:~$ conda activate pytorch 
         (pytorch) jg@JG:~$ conda install pytorch torchvision cudatoolkit cudnn -c pytorch
         (pytorch) jg@JG:~$ pip install matplotlib tensorboard torchsummary plotly mlflow opencv-python tqdm PyYAML --no-cache-dir --pre --upgrade
+        
+        torchsummary -> torchinfo로 바꾸는 작업 
         ```
 >## ***Author*** 
 
