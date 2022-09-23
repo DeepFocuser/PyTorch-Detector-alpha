@@ -255,7 +255,6 @@ def run(mean=[0.485, 0.456, 0.406],
             negative_split = torch.split(negative, chunk, dim=0)
 
             losses = []
-            total_loss = 0.0
 
             for anchor_part, positive_part, negative_part in zip(
                     anchor_split,
@@ -292,15 +291,14 @@ def run(mean=[0.485, 0.456, 0.406],
                                       positive_pred[valid_triplets],
                                       negative_pred[valid_triplets])
                 loss = torch.div(triplet_loss, subdivision)
+                loss.backward()
                 losses.append(loss.item())
-                total_loss = total_loss + loss
-
+ 
             if total_loss.isnan():
                 logging.info("loss is nan")
                 loss_sum += 0
                 continue
             else:
-                total_loss.backward()
                 trainer.step()
                 lr_sch.step()
                 loss_sum += sum(losses)
