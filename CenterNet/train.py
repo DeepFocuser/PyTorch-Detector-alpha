@@ -291,7 +291,6 @@ def run(mean=[0.485, 0.456, 0.406],
             heatmap_losses = []
             offset_losses = []
             wh_losses = []
-            total_loss = 0.0
 
             for image_part, heatmap_target_part, offset_target_part, wh_target_part, mask_target_part in zip(
                     image_split,
@@ -312,10 +311,9 @@ def run(mean=[0.485, 0.456, 0.406],
                 heatmap_losses.append(heatmap_loss.item())
                 offset_losses.append(offset_loss.item())
                 wh_losses.append(wh_loss.item())
-
-                total_loss = total_loss + (heatmap_loss + offset_loss + wh_loss)
-
-            total_loss.backward()
+                loss = heatmap_loss + offset_loss + wh_loss 
+                loss.backward()
+             
             trainer.step()
             lr_sch.step()
 
