@@ -298,7 +298,6 @@ def run(mean=[0.485, 0.456, 0.406],
             offset_losses = []
             wh_losses = []
             landmark_losses = []
-            total_loss = 0.0
 
             for image_part, heatmap_target_part, offset_target_part, wh_target_part, landmark_target_part, mask_target_part, landmarks_mask_target_part in zip(
                     image_split,
@@ -327,7 +326,6 @@ def run(mean=[0.485, 0.456, 0.406],
                 
                 loss = heatmap_loss + offset_loss + wh_loss + landmark_loss
                 loss.backward()
-                total_loss = total_loss + loss
 
             trainer.step()
             lr_sch.step()
