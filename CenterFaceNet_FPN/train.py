@@ -324,10 +324,11 @@ def run(mean=[0.485, 0.456, 0.406],
                 offset_losses.append(offset_loss.item())
                 wh_losses.append(wh_loss.item())
                 landmark_losses.append(landmark_loss.item())
+                
+                loss = heatmap_loss + offset_loss + wh_loss + landmark_loss
+                loss.backward()
+                total_loss = total_loss + loss
 
-                total_loss = total_loss + (heatmap_loss + offset_loss + wh_loss + landmark_loss)
-
-            total_loss.backward()
             trainer.step()
             lr_sch.step()
 
