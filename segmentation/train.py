@@ -258,7 +258,6 @@ def run(mean=[0.485, 0.456, 0.406],
             mask_split = torch.split(mask, chunk, dim=0)
 
             losses = []
-            total_loss = 0.0
 
             for image_part, mask_part in zip(
                     image_split,
@@ -269,11 +268,9 @@ def run(mean=[0.485, 0.456, 0.406],
                 Loss 구현시 고려해야 한다.(mean 모드) 
                 '''
                 loss = torch.div(SCELoss(pred, mask_part), subdivision)
+                loss.backward()
                 losses.append(loss.item())
 
-                total_loss = total_loss + loss
-
-            total_loss.backward()
             trainer.step()
             lr_sch.step()
 
