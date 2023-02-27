@@ -55,6 +55,8 @@ class CenterTrainTransform(object):
             if translation:
                 x_offset = np.random.randint(-3, high=3)
                 y_offset = np.random.randint(-3, high=3)
+                M = np.float64([[1, 0, x_offset], [0, 1, y_offset]])
+                img = cv2.warpAffine(img, M, (w,h))
                 bbox = box_translate(bbox, x_offset=x_offset, y_offset=y_offset, shape=(h, w))
                 bbox = landmark_translate(bbox, x_offset=x_offset, y_offset=y_offset, shape=(h, w))
 
