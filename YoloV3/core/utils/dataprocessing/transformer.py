@@ -68,6 +68,8 @@ class YoloTrainTransform(object):
             if translation:
                 x_offset = np.random.randint(-7, high=7)
                 y_offset = np.random.randint(-7, high=7)
+                M = np.float64([[1, 0, x_offset], [0, 1, y_offset]])
+                img = cv2.warpAffine(img, M, (w,h))
                 bbox = box_translate(bbox, x_offset=x_offset, y_offset=y_offset, shape=(h, w))
 
             # resize with random interpolation
