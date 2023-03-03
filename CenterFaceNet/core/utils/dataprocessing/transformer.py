@@ -59,17 +59,41 @@ class CenterTrainTransform(object):
                 img = cv2.warpAffine(img, M, (w,h))
                 bbox = box_translate(bbox, x_offset=x_offset, y_offset=y_offset, shape=(h, w))
                 bbox = landmark_translate(bbox, x_offset=x_offset, y_offset=y_offset, shape=(h, w))
+            
+            rotation = np.random.choice([False, True], p=[0.5, 0.5])
+            if rotation:
+                angle = random.uniform(-7, +7)
+                scale = random.uniform(0.9, 1.1)
 
+                center = (w / 2, h / 2)  # 영상의 가로 1/2, 세로 1/2
+                rotation_matrix = cv2.getRotationMatrix2D(center, angle, scale)
+                img = cv2.warpAffine(img, rotation_matrix, (w, h), flags=cv2.INTER_LINEAR)
+                bbox_number = bbox.shape[0]
+
+                only_bbox = bbox[:,:4].reshape((-1,2))
+                temp = np.ones((bbox_number*2, 1)) # box number 개수 // 4
+                only_bbox = np.concatenate([only_bbox, temp], axis=1)
+
+                only_landmark = bbox[:, 5:].reshape((-1,2))
+                temp = np.ones((bbox_number*5, 1)) # landmark 개수 // 2
+                only_landmark = np.concatenate([only_landmark, temp], axis=1)
+
+                only_bbox = np.matmul(rotation_matrix, only_bbox.T)
+                only_landmark = np.matmul(rotation_matrix, only_landmark.T)
+
+                only_bbox = only_bbox.T.flatten().reshape(bbox_number, -1)
+                only_landmark = only_landmark.T.flatten().reshape(bbox_number, -1)
+                bbox = np.concatenate([only_bbox, bbox[:, 4:5], only_landmark], axis=-1)
+            
             # resize with random interpolation
             h, w, _ = img.shape
-            interp = np.random.randint(0, 3)
-            img = cv2.resize(img, (self._width, self._height), interpolation=interp)
+            img = cv2.resize(img, (self._width, self._height), interpolation=1)
             bbox = box_resize(bbox, (w, h), (output_w, output_h))
             bbox = landmark_resize(bbox, (w, h), (output_w, output_h))
 
         else:
             h, w, _ = img.shape
-            img = cv2.resize(img, (self._width, self._height), interpolation=cv2.INTER_AREA)
+            img = cv2.resize(img, (self._width, self._height), interpolation=1)
             bbox = box_resize(bbox, (w, h), (output_w, output_h))
             bbox = landmark_resize(bbox, (w, h), (output_w, output_h))
 
