@@ -333,7 +333,6 @@ class Prediction(nn.Module):
             landmarks = torch.stack(blms_list, dim=0)
 
             return ids, scores, bboxes * self._scale, landmarks * self._scale
-
 # test
 if __name__ == "__main__":
     import os
