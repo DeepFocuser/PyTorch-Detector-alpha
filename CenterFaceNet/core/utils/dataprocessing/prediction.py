@@ -29,11 +29,11 @@ class Prediction(nn.Module):
 
         if ids.shape[0] == 1:
             return ids, scores, bboxes, landmarks
-        
+
         # You should not write a stable argument.
         _, indices = torch.sort(scores, dim=0, descending=True) # 내림차순 정렬
         indices = indices[:,0]
-        
+
         ids = ids[indices]
         scores = scores[indices]
         xmin = bboxes[:,0:1][indices]
@@ -76,7 +76,7 @@ class Prediction(nn.Module):
             i+=1
 
         # nms 한 것들 mask 씌우기
-        mask = mask[:,None]
+        mask = mask[:, None]
         ids = ids * mask
         scores = scores * mask
         xmin = xmin * mask
@@ -117,9 +117,11 @@ class Prediction(nn.Module):
         The peak keypoint extraction serves
         as a sufficient NMS alternative and can be implemented efficiently on device using a 3 × 3 max pooling operation.
         '''
+        device = heatmap.device
+
         keep = self._heatmap_nms(heatmap) == heatmap
         heatmap = torch.mul(keep, heatmap)
-        batch, channel, height, width = heatmap.shape
+        batch, _, height, width = heatmap.shape
 
         # 상위 self._topk개만 뽑아내기
         heatmap_resize = heatmap.reshape((batch, -1))
@@ -139,16 +141,19 @@ class Prediction(nn.Module):
         offset = offset.permute(0, 2, 3, 1).reshape(
             (batch, -1, 2))  # (batch, x, y, channel) -> (batch, height*width, 2)
         wh = wh.permute(0, 2, 3, 1).reshape((batch, -1, 2))  # (batch, width, height, channel) -> (batch, height*width, 2)
-        landmark = landmark.permute(0, 2, 3, 1).reshape((batch, -1, landmark.shape[1])) # (batch, width, height, channel) -> (batch, height*width, 10)
+
+        _, landmark_number, _, _ = landmark.shape
+        landmark = landmark.permute(0, 2, 3, 1).reshape((batch, -1, landmark_number)) # (batch, width, height, channel) -> (batch, height*width, 10)
+
         landmark_split = torch.split(landmark, 2, dim=-1) # 각각 (batch, height*width, 2)
-        
+
         topk_indices = torch.remainder(indices, (height * width))
 
         # 2차원 복구
         topk_ys = torch.div(topk_indices, width, rounding_mode="floor")  # y축 index
         topk_xs = torch.remainder(topk_indices, width)  # x축 index
-     
-        batch_indices = torch.arange(batch, device=ids.device).unsqueeze(dim=-1)
+
+        batch_indices = torch.arange(batch, device=device).unsqueeze(dim=-1)
         batch_indices = batch_indices.repeat(1, self._topk) # (batch, self._topk)
 
         offset_xs_indices = torch.zeros_like(batch_indices, dtype=torch.int64)
@@ -191,20 +196,20 @@ class Prediction(nn.Module):
         # landmarks 복구
         topk_xs = topk_xs[:,:,None]
         topk_ys = topk_ys[:,:,None]
-        landmark1_x = landmark1_x + topk_xs
-        landmark1_y = landmark1_y + topk_ys
+        landmark1_x = (landmark1_x + topk_xs) * width
+        landmark1_y = (landmark1_y + topk_ys) * height
 
-        landmark2_x = landmark2_x + topk_xs
-        landmark2_y = landmark2_y + topk_ys
+        landmark2_x = (landmark2_x + topk_xs) * width
+        landmark2_y = (landmark2_y + topk_ys) * height
 
-        landmark3_x = landmark3_x + topk_xs
-        landmark3_y = landmark3_y + topk_ys
+        landmark3_x = (landmark3_x + topk_xs) * width
+        landmark3_y = (landmark3_y + topk_ys) * height
 
-        landmark4_x = landmark4_x + topk_xs
-        landmark4_y = landmark4_y + topk_ys
+        landmark4_x = (landmark4_x + topk_xs) * width
+        landmark4_y = (landmark4_y + topk_ys) * height
 
-        landmark5_x = landmark5_x + topk_xs
-        landmark5_y = landmark5_y + topk_ys
+        landmark5_x = (landmark5_x + topk_xs) * width
+        landmark5_y = (landmark5_y + topk_ys) * height
 
         except_mask = scores > self._except_class_thresh
         ids = torch.where(except_mask, ids, torch.ones_like(ids) * -1)
@@ -285,8 +290,48 @@ class Prediction(nn.Module):
                 bboxes = torch.stack(bboxes_list, dim=0)
                 landmarks = torch.stack(llmarks_list, dim=0)
 
+            # landmark 영역 제한 시켜주기
+            blms_list = []
+            for landmark, bbox in zip(landmarks, bboxes):
+                lms_list = []
+                for lm, box in zip(landmark, bbox):
+                    lm_list = []
+                    for i in range(0, landmark_number, 2):
+                        if box[0] < lm[i] < box[2]:
+                            lm_list.append(lm[i])
+                        else:
+                            lm_list.append(torch.as_tensor(-1.0, device=device, dtype=torch.float32))
+
+                        if (box[1] < lm[i + 1] < box[3]):
+                            lm_list.append(lm[i + 1])
+                        else:
+                            lm_list.append(torch.as_tensor(-1.0, device=device, dtype=torch.float32))
+                    lms_list.append(torch.stack(lm_list, dim=0))
+                blms_list.append(torch.stack(lms_list, dim=0))
+            landmarks = torch.stack(blms_list, dim=0)
+
             return ids, scores, bboxes * self._scale, landmarks * self._scale
         else:
+            # 제한 시켜주기
+            blms_list = []
+            for landmark, bbox in zip(landmarks, bboxes):
+                lms_list = []
+                for lm, box in zip(landmark, bbox):
+                    lm_list = []
+                    for i in range(0, landmark_number, 2):
+                        if box[0] < lm[i] < box[2]:
+                            lm_list.append(lm[i])
+                        else:
+                            lm_list.append(torch.as_tensor(-1.0, device=device, dtype=torch.float32))
+
+                        if (box[1] < lm[i + 1] < box[3]):
+                            lm_list.append(lm[i + 1])
+                        else:
+                            lm_list.append(torch.as_tensor(-1.0, device=device, dtype=torch.float32))
+                    lms_list.append(torch.stack(lm_list, dim=0))
+                blms_list.append(torch.stack(lms_list, dim=0))
+            landmarks = torch.stack(blms_list, dim=0)
+
             return ids, scores, bboxes * self._scale, landmarks * self._scale
 
 # test
