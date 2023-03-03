@@ -127,10 +127,16 @@ class TargetGenerator(nn.Module):
                 # center offset
                 offset_target[batch, :, center_y, center_x] = center - center_int
 
-                # landmark - center / (width, height)
-                center = center.tolist()
-                center_repeat = (repeats//2)*center #np.repeat([center], 5, axis=0).ravel()
-                landmark_target[batch, :, center_y, center_x] = landmark-center_repeat
+                landmark_norm = []
+                for i  in range(0, len(landmark), 2):
+                    landmark_norm.append(landmark[i] / output_width)
+                    landmark_norm.append(landmark[i+1] / output_height)
+                    # landmark - center / (width, height)
+                landmark_norm = np.array(landmark_norm)
+
+                center_norm = center / np.array([output_width, output_height])
+                center_norm_repeat = np.repeat([center_norm], repeats//2, axis=0).ravel()
+                landmark_target[batch, :, center_y, center_x] = landmark_norm-center_norm_repeat
 
                 # mask
                 mask_target[batch, :, center_y, center_x] = 1.0
@@ -145,14 +151,15 @@ if __name__ == "__main__":
     from core.utils.dataprocessing.transformer import CenterTrainTransform
     import os
 
-    input_size = (768, 1280) # height, width
+    input_size = (512, 512) # height, width
     scale_factor = 4
     sequence_number = 1
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     transform = CenterTrainTransform(input_size, input_frame_number=sequence_number, mean=(0.485, 0.456, 0.406),
                                      std=(0.229, 0.224, 0.225),
-                                     scale_factor=4)
-    dataset = DetectionDataset(path=os.path.join(root, 'Dataset_WIDER', 'train'), transform=transform, sequence_number=sequence_number)
+                                     scale_factor=scale_factor)
+    dataset = DetectionDataset(path='C:/Users/user/Desktop/FaceDataset/Dataset_WIDER/train', transform=transform, sequence_number=sequence_number)
+    #dataset = DetectionDataset(path=os.path.join(root, 'Dataset_WIDER', 'train'), transform=transform, sequence_number=sequence_number)
 
     num_classes = dataset.num_class
     image, label, _, _, _ = dataset[0]
@@ -181,3 +188,4 @@ if __name__ == "__main__":
     mask_targets shape : torch.Size([1, 2, 192, 320])
     landmarks_mask_target shape : torch.Size([1, 10, 192, 320])
     '''
+
