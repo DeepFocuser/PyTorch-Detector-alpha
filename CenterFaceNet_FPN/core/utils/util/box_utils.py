@@ -314,32 +314,21 @@ def landmark_resize(landmark, in_size, out_size):
     if not len(out_size) == 2:
         raise ValueError("out_size requires length 2 tuple, given {}".format(len(out_size)))
 
+    landmark_number = landmark.shape[-1]
     landmark = landmark.copy()
     x_scale = out_size[0] / in_size[0]
     y_scale = out_size[1] / in_size[1]
 
-    if len(landmark[0])==10: # landmark 길이 10 일떄
-        landmark[:, 0] = x_scale * landmark[:, 0]
-        landmark[:, 1] = y_scale * landmark[:, 1]
-        landmark[:, 2] = x_scale * landmark[:, 2]
-        landmark[:, 3] = y_scale * landmark[:, 3]
-        landmark[:, 4] = x_scale * landmark[:, 4]
-        landmark[:, 5] = y_scale * landmark[:, 5]
-        landmark[:, 6] = x_scale * landmark[:, 6]
-        landmark[:, 7] = y_scale * landmark[:, 7]
-        landmark[:, 8] = x_scale * landmark[:, 8]
-        landmark[:, 9] = y_scale * landmark[:, 9]
-    else : # landmark 길이 14 일때(BOX 포함)
-        landmark[:, 5] = x_scale * landmark[:, 5]
-        landmark[:, 6] = y_scale * landmark[:, 6]
-        landmark[:, 7] = x_scale * landmark[:, 7]
-        landmark[:, 8] = y_scale * landmark[:, 8]
-        landmark[:, 9] = x_scale * landmark[:, 9]
-        landmark[:, 10] = y_scale * landmark[:, 10]
-        landmark[:, 11] = x_scale * landmark[:, 11]
-        landmark[:, 12] = y_scale * landmark[:, 12]
-        landmark[:, 13] = x_scale * landmark[:, 13]
-        landmark[:, 14] = y_scale * landmark[:, 14]
+    if landmark_number % 2 == 1: # landmark 길이 106*2 + 5 일떄
+        landmark_number = landmark.shape[-1] - 5
+        for i in range(5, landmark_number + 5, 2):
+            landmark[:, i] = x_scale * landmark[:, i]
+            landmark[:, i+1] = y_scale * landmark[:, i+1]
+    else : # landmark 길이 111(5+106*2) 일때(BOX, id 포함)
+        landmark_number = landmark.shape[-1]
+        for i in range(0, landmark_number, 2):
+            landmark[:, i] = x_scale * landmark[:, i]
+            landmark[:, i+1] = y_scale * landmark[:, i+1]
 
     return landmark
 
@@ -348,53 +337,29 @@ def landmark_flip(landmark, size, flip_x=False, flip_y=False):
     if not len(size) == 2:
         raise ValueError("size requires length 2 tuple, given {}".format(len(size)))
     width, height = size
+    landmark_number = landmark.shape[-1] - 5
     landmark = landmark.copy()
     if flip_y:
-        flippedy = height - landmark[:, 6]
-        landmark[:, 6] = flippedy
-        flippedy = height - landmark[:, 8]
-        landmark[:, 8] = flippedy
-        flippedy = height - landmark[:, 10]
-        landmark[:, 10] = flippedy
-        flippedy = height - landmark[:, 12]
-        landmark[:, 12] = flippedy
-        flippedy = height - landmark[:, 14]
-        landmark[:, 14] = flippedy
+        for i in range(6, landmark_number + 5, 2):
+            flippedy = height - landmark[:, i]
+            landmark[:, i] = flippedy
     if flip_x:
-        flippedx = width - landmark[:, 5]
-        landmark[:, 5] = flippedx
-        flippedx = width - landmark[:, 7]
-        landmark[:, 7] = flippedx
-        flippedx = width - landmark[:, 9]
-        landmark[:, 9] = flippedx
-        flippedx = width - landmark[:, 11]
-        landmark[:, 11] = flippedx
-        flippedx = width - landmark[:, 13]
-        landmark[:, 13] = flippedx
-
+        for i in range(5, landmark_number + 5, 2):
+            flippedx = width - landmark[:, i]
+            landmark[:, i] = flippedx
     return landmark
-
 
 def landmark_translate(landmark, x_offset=0, y_offset=0, shape=(512, 512)):
 
     h, w = shape
+    landmark_number = landmark.shape[-1] - 5
     landmark = landmark.copy()
 
-    landmark[:, 5:7] += (x_offset, y_offset)
-    landmark[:, 7:9] += (x_offset, y_offset)
-    landmark[:, 9:11] += (x_offset, y_offset)
-    landmark[:, 11:13] += (x_offset, y_offset)
-    landmark[:, 13:15] += (x_offset, y_offset)
+    for i in range(5, landmark_number + 5, 2):
+        landmark[:, i:i+2] += (x_offset, y_offset)
 
-    landmark[:, 5] = np.clip(landmark[:, 5], 0, w)
-    landmark[:, 6] = np.clip(landmark[:, 6], 0, h)
-    landmark[:, 7] = np.clip(landmark[:, 7], 0, w)
-    landmark[:, 8] = np.clip(landmark[:, 8], 0, h)
-    landmark[:, 9] = np.clip(landmark[:, 9], 0, w)
-    landmark[:, 10] = np.clip(landmark[:, 10], 0, h)
-    landmark[:, 11] = np.clip(landmark[:, 11], 0, w)
-    landmark[:, 12] = np.clip(landmark[:, 12], 0, h)
-    landmark[:, 13] = np.clip(landmark[:, 13], 0, w)
-    landmark[:, 14] = np.clip(landmark[:, 14], 0, h)
+    for i in range(5,landmark_number + 5, 2):
+        landmark[:, i] = np.clip(landmark[:, i], 0, w)
+        landmark[:, i + 1] = np.clip(landmark[:, i + 1], 0, h)
 
     return landmark
