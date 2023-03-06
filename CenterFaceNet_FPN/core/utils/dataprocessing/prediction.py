@@ -41,16 +41,9 @@ class Prediction(nn.Module):
         xmax = bboxes[:,2:3][indices]
         ymax = bboxes[:,3:4][indices]
 
-        lx1 = landmarks[:,0:1][indices]
-        ly1 = landmarks[:,1:2][indices]
-        lx2 = landmarks[:,2:3][indices]
-        ly2 = landmarks[:,3:4][indices]
-        lx3 = landmarks[:,4:5][indices]
-        ly3 = landmarks[:,5:6][indices]
-        lx4 = landmarks[:,6:7][indices]
-        ly4 = landmarks[:,7:8][indices]
-        lx5 = landmarks[:,8:9][indices]
-        ly5 = landmarks[:,9:10][indices]
+        landmarks_list = []
+        for i in range(0, landmarks.shape[-1]):
+            landmarks_list.append(landmarks[:, i:i+1][indices])
 
         # nms 알고리즘
         x1 = xmin[:, 0]
@@ -60,7 +53,7 @@ class Prediction(nn.Module):
 
         mask = torch.ones_like(x1)
         i = 0
-        while i < len(ids)-1:
+        while i < ids.shape[0]-1:
 
             xx1 = torch.max(x1[i], x1[i+1:])
             yy1 = torch.max(y1[i], y1[i+1:])
@@ -84,16 +77,7 @@ class Prediction(nn.Module):
         xmax = xmax * mask
         ymax = ymax * mask
 
-        lx1 = lx1 * mask
-        ly1 = ly1 * mask
-        lx2 = lx2 * mask
-        ly2 = ly2 * mask
-        lx3 = lx3 * mask
-        ly3 = ly3 * mask
-        lx4 = lx4 * mask
-        ly4 = ly4 * mask
-        lx5 = lx5 * mask
-        ly5 = ly5 * mask
+        landmarks_list = [landmarks*mask for landmarks in landmarks_list]
 
         # nms 한 것들 mask 씌우기
         ids = torch.where(ids<0, torch.ones_like(ids)*-1, ids) # 0 : nms / -1 : 배경 -> -1 로 표현
@@ -103,12 +87,7 @@ class Prediction(nn.Module):
         xmax = torch.where(xmax<0, torch.ones_like(xmax)*-1, xmax)
         ymax = torch.where(ymax<0, torch.ones_like(ymax)*-1, ymax)
         bboxes = torch.cat([xmin, ymin, xmax, ymax], dim=-1)
-        landmarks = torch.cat([lx1, ly1,
-                               lx2, ly2,
-                               lx3, ly3,
-                               lx4, ly4,
-                               lx5, ly5
-                               ], dim=-1)
+        landmarks = torch.cat(landmarks_list, dim=-1)
 
         return ids, scores, bboxes, landmarks
 
@@ -254,16 +233,12 @@ class Prediction(nn.Module):
                     for uid in self._unique_ids:
                         indices = id==uid
                         bbox = torch.cat([box[:,0:1][indices, None], box[:,1:2][indices, None], box[:, 2:3][indices, None], box[:,3:4][indices, None]], dim=-1)
-                        llmark = torch.cat([lmark[:, 0:1][indices, None],
-                                            lmark[:, 1:2][indices, None],
-                                            lmark[:, 2:3][indices, None],
-                                            lmark[:, 3:4][indices, None],
-                                            lmark[:, 4:5][indices, None],
-                                            lmark[:, 5:6][indices, None],
-                                            lmark[:, 6:7][indices, None],
-                                            lmark[:, 7:8][indices, None],
-                                            lmark[:, 8:9][indices, None],
-                                            lmark[:, 9:10][indices, None]], dim=-1)
+                        
+                        lmark_list = []
+                        for i in range(landmark_number):
+                            lmark_list.append(lmark[:, i:i+1][indices, None])
+                        llmark = torch.cat(lmark_list, dim=-1)
+
                         if uid < 0: # 배경인 경우
                             id_part, score_part, bbox_part, llmark_part = id[indices, None], score[indices, None], bbox, llmark
                         else:
