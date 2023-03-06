@@ -32,6 +32,7 @@ class CenterTrainTransform(object):
 
         output_w = self._width // self._scale_factor
         output_h = self._height // self._scale_factor
+        landmark_number = bbox.shape[-1]-5
 
         if self._augmentation:
             distortion = np.random.choice([False, True], p=[0.5, 0.5])
@@ -75,7 +76,7 @@ class CenterTrainTransform(object):
                 only_bbox = np.concatenate([only_bbox, temp], axis=1)
 
                 only_landmark = bbox[:, 5:].reshape((-1,2))
-                temp = np.ones((bbox_number*5, 1)) # landmark 개수 // 2
+                temp = np.ones((bbox_number*(landmark_number//2), 1)) # landmark 개수 // 2
                 only_landmark = np.concatenate([only_landmark, temp], axis=1)
 
                 only_bbox = np.matmul(rotation_matrix, only_bbox.T)
@@ -103,16 +104,9 @@ class CenterTrainTransform(object):
         bbox[:, 2] = np.clip(bbox[:, 2], 0, output_w-1)
         bbox[:, 3] = np.clip(bbox[:, 3], 0, output_h-1)
 
-        bbox[:, 5] = np.clip(bbox[:, 5], 0, output_w-1)
-        bbox[:, 6] = np.clip(bbox[:, 6], 0, output_h-1)
-        bbox[:, 7] = np.clip(bbox[:, 7], 0, output_w-1)
-        bbox[:, 8] = np.clip(bbox[:, 8], 0, output_h-1)
-        bbox[:, 9] = np.clip(bbox[:, 9], 0, output_w-1)
-        bbox[:, 10] = np.clip(bbox[:, 10], 0, output_h-1)
-        bbox[:, 11] = np.clip(bbox[:, 11], 0, output_w-1)
-        bbox[:, 12] = np.clip(bbox[:, 12], 0, output_h-1)
-        bbox[:, 13] = np.clip(bbox[:, 13], 0, output_w-1)
-        bbox[:, 14] = np.clip(bbox[:, 14], 0, output_h-1)
+        for i in range(5, landmark_number+5, 2):
+            bbox[:, i] = np.clip(bbox[:, i], 0, output_w-1)
+            bbox[:, i+1] = np.clip(bbox[:, i+1], 0, output_h-1)
 
         img = self._toTensor(img)  # 0 ~ 1 로 바꾸기
         img = torch.sub(img, self._mean)
@@ -150,6 +144,7 @@ class CenterValidTransform(object):
 
         output_w = self._width // self._scale_factor
         output_h = self._height // self._scale_factor
+        landmark_number = bbox.shape[-1]-5
 
         h, w, _ = img.shape
         img = cv2.resize(img, (self._width, self._height), interpolation=1)
@@ -166,16 +161,9 @@ class CenterValidTransform(object):
         bbox[:, 2] = np.clip(bbox[:, 2], 0, output_w-1)
         bbox[:, 3] = np.clip(bbox[:, 3], 0, output_h-1)
 
-        bbox[:, 5] = np.clip(bbox[:, 5], 0, output_w-1)
-        bbox[:, 6] = np.clip(bbox[:, 6], 0, output_h-1)
-        bbox[:, 7] = np.clip(bbox[:, 7], 0, output_w-1)
-        bbox[:, 8] = np.clip(bbox[:, 8], 0, output_h-1)
-        bbox[:, 9] = np.clip(bbox[:, 9], 0, output_w-1)
-        bbox[:, 10] = np.clip(bbox[:, 10], 0, output_h-1)
-        bbox[:, 11] = np.clip(bbox[:, 11], 0, output_w-1)
-        bbox[:, 12] = np.clip(bbox[:, 12], 0, output_h-1)
-        bbox[:, 13] = np.clip(bbox[:, 13], 0, output_w-1)
-        bbox[:, 14] = np.clip(bbox[:, 14], 0, output_h-1)
+        for i in range(5, landmark_number+5, 2):
+            bbox[:, i] = np.clip(bbox[:, i], 0, output_w-1)
+            bbox[:, i+1] = np.clip(bbox[:, i+1], 0, output_h-1)
 
         if self._make_target:
             bbox = bbox[np.newaxis, :, :]
