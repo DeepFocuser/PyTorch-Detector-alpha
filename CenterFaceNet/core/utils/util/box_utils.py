@@ -319,12 +319,12 @@ def landmark_resize(landmark, in_size, out_size):
     x_scale = out_size[0] / in_size[0]
     y_scale = out_size[1] / in_size[1]
 
-    if landmark_number % 2 == 1: # landmark 길이 106*2 + 5 일떄
+    if landmark_number % 2 == 1:
         landmark_number = landmark.shape[-1] - 5
         for i in range(5, landmark_number + 5, 2):
             landmark[:, i] = x_scale * landmark[:, i]
             landmark[:, i+1] = y_scale * landmark[:, i+1]
-    else : # landmark 길이 111(5+106*2) 일때(BOX, id 포함)
+    else:
         landmark_number = landmark.shape[-1]
         for i in range(0, landmark_number, 2):
             landmark[:, i] = x_scale * landmark[:, i]
